@@ -49,6 +49,7 @@
 
 ## 主要能力
 
+- 独立模块面板与统一项目预览：桌面双列、移动端单列，完整内容放入可分享链接的项目详情；支持键盘操作、浏览器前进后退和无 JavaScript 回退。
 - 原生、无 CDN 依赖的聊天组件；流式回答、停止、重试、新对话、来源展开、手机全屏。
 - TextLoader 按清单加载公开 TXT，RecursiveCharacterTextSplitter 重叠分块。
 - 远程 BGE-M3，或可选本地 BGE；FAISS 归一化向量语义召回。

@@ -18,42 +18,54 @@ def esc(value):
 
 
 def card(p, rank):
-    desktop_suffix = '-mobile' if p['layout'] == 'normal' else ''
     tags = ''.join(f'<span class="tag">{esc(t)}</span>' for t in p['tags'])
-    bullets = ''.join(f'<li><b>{esc(k)}：</b>{esc(v)}</li>' for k, v in p['highlights'])
-    details = ''.join(f'<div class="pc-item"><b>{esc(k)} →</b>{esc(v)}</div>' for k, v in p['details'])
-    links = ''.join(f'<a href="{esc(link["url"])}" target="_blank" rel="noopener noreferrer">{esc(link["label"])} ↗</a>' for link in p['links'])
-    if p.get('assistant'):
-        links = '<button class="btn primary pa-card-cta" type="button" data-open-assistant>打开问答助手 ↗</button>' + links
-    return f'''<article class="proj-card {esc(p['layout'])} reveal" id="{esc(p['anchor'])}" data-project="{esc(p['id'])}">
-      <div class="proj-identity"><span class="proj-index"><span class="project-rank">{rank:02}</span> {esc(p['category'])}</span><span class="proj-state">{esc(p['status'])}</span></div>
-      <div class="proj-top">
-        <div class="proj-media project-flow"><picture><source media="(max-width:768px)" srcset="assets/project-{esc(p['id'])}-mobile.svg"><img src="assets/project-{esc(p['id'])}{desktop_suffix}.svg" alt="{esc(p['title'])}处理流程示意：{esc(' → '.join(p['pipeline']))}" loading="lazy" decoding="async"></picture></div>
-        <div class="proj-body">
-          <div class="proj-head"><h3>{esc(p['title'])}</h3></div>
-          <p>{esc(p['description'])}</p>
-          <ul class="hl">{bullets}</ul>
-          <details class="proj-details"><summary>设计思路与实践复盘<span class="detail-cue" aria-hidden="true"></span></summary><div class="proj-challenge"><div class="pc-title">实现、取舍与下一步</div>{details}</div></details>
-          <p class="proj-note">{esc(p['note'])}</p>
-          <div class="proj-foot"><div class="tags">{tags}</div><div class="proj-links">{links}</div></div>
-        </div>
+    preview_tags = ''.join(f'<span class="tag">{esc(t)}</span>' for t in p['tags'][:4])
+    preview = ''.join(f'<li><b>{esc(k)}</b><span>{esc(v)}</span></li>' for k, v in p['preview'])
+    bullets = ''.join(f'<li><b>{esc(k)}</b><p>{esc(v)}</p></li>' for k, v in p['highlights'])
+    details = ''.join(f'<div class="detail-point"><h4>{esc(k)}</h4><p>{esc(v)}</p></div>' for k, v in p['details'])
+    links = ''.join(f'<a class="detail-link" href="{esc(link["url"])}" target="_blank" rel="noopener noreferrer">{esc(link["label"])} ↗</a>' for link in p['links'])
+    github_link = next(link for link in p['links'] if 'github.com/' in link['url'])
+    quick_links = f'<a href="{esc(github_link["url"])}" target="_blank" rel="noopener noreferrer" aria-label="{esc(p["title"])}：GitHub 源码或说明">GitHub ↗</a>'
+    for link in p['links']:
+        if 'github.io/' in link['url']:
+            quick_links += f'<a href="{esc(link["url"])}" target="_blank" rel="noopener noreferrer">在线体验 ↗</a>'
+    feature = '<span class="work-feature">重点项目</span>' if rank == 1 else ''
+    return f'''<article class="work-card reveal" id="{esc(p['anchor'])}" data-project="{esc(p['id'])}">
+      <div class="work-kicker"><span class="work-category"><span class="project-rank">{rank:02}</span>{esc(p['category'])}</span>{feature}</div>
+      <h3 class="work-title">{esc(p['title'])}</h3>
+      <p class="work-state"><span aria-hidden="true"></span>{esc(p['status'])}</p>
+      <p class="work-summary">{esc(p['summary'])}</p>
+      <ul class="work-highlights">{preview}</ul>
+      <div class="work-tags tags" aria-label="主要技术">{preview_tags}</div>
+      <div class="work-footer">
+        <details class="work-detail" id="details-{esc(p['id'])}" data-title="{esc(p['title'])}" data-rank="{rank:02}">
+          <summary>查看项目详情<span aria-hidden="true">↗</span></summary>
+          <div class="work-detail-body">
+            <p class="detail-state">{esc(p['category'])} · {esc(p['status'])}</p>
+            <p class="detail-intro">{esc(p['description'])}</p>
+            <div class="detail-section"><h3>实际实现与职责</h3><ul class="detail-highlights">{bullets}</ul></div>
+            <div class="detail-section"><h3>处理链路</h3><p class="detail-caption">以下为处理流程示意。</p><picture class="detail-flow"><source media="(max-width:600px)" srcset="assets/project-{esc(p['id'])}-mobile.svg"><img src="assets/project-{esc(p['id'])}.svg" alt="{esc(p['title'])}处理流程示意：{esc(' → '.join(p['pipeline']))}" loading="lazy" decoding="async"></picture></div>
+            <div class="detail-section"><h3>设计取舍与实践复盘</h3>{details}</div>
+            <div class="detail-section detail-boundary"><h3>当前状态与边界</h3><p>{esc(p['note'])}</p></div>
+            <div class="detail-section"><h3>完整技术栈</h3><div class="tags">{tags}</div></div>
+            <div class="detail-section"><h3>源码与相关入口</h3><div class="detail-links">{links}</div></div>
+          </div>
+        </details>
+        <div class="work-links">{quick_links}</div>
       </div>
     </article>'''
 
 
 def project_section(projects):
-    nav = ''.join(f'<a href="#{esc(p["anchor"])}"><span>{i:02}</span> {esc(p["nav"])}</a>' for i, p in enumerate(projects, 1))
-    cards = []
-    for i, p in enumerate(projects, 1):
-        if i == 4:
-            cards.append('<div class="project-group" id="more-projects"><h3>产品迭代与场景实践</h3><p>从持续使用的工具，到视觉应用和平台学习，保留每项实践的真实范围。</p></div>')
-        cards.append(card(p, i))
+    names = {'rag': 'RAG', 'speech': '语音情感', 'boss': 'BOSS 工具', 'ledger': '记账本', 'fruit': '果蔬识别', 'coze': 'Coze'}
+    nav = ''.join(f'<a href="#{esc(p["anchor"])}"><span>{i:02}</span> {esc(names[p["id"]])}</a>' for i, p in enumerate(projects, 1))
+    cards = [card(p, i) for i, p in enumerate(projects, 1)]
     return f'''{START}
 <section id="proj" class="shade">
   <div class="wrap">
-    <div class="sec-head reveal" data-label="SELECTED PROJECTS"><h2 class="sec-title"><span class="sec-no">05</span>项目作品</h2><p class="sec-sub">以 AI 应用与工程实现为主线，依次展示全栈问答、语音分析、浏览器集成与产品实践。每个项目说明实际完成的内容、技术取舍和当前状态。</p></div>
+    <div class="sec-head reveal" data-label="SELECTED PROJECTS"><h2 class="sec-title"><span class="sec-no">02</span>项目作品</h2><p class="sec-sub">六个项目，连接业务需求、模型集成与应用交付。查看详情，了解完整实现、技术取舍与当前状态。</p></div>
     <nav class="project-index" aria-label="项目快速定位">{nav}</nav>
-    <div class="proj-list">{''.join(cards)}</div>
+    <div class="work-grid">{''.join(cards)}</div>
   </div>
 </section>
 {END}'''

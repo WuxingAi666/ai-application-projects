@@ -19,5 +19,7 @@ jobs:
         with:
           node-version: '22'
       - run: node --check frontend/js/assistant.js
+      - run: node --check frontend/js/projects.js
+      - run: node --check frontend/js/main.js
       - run: python scripts/sync-project-content.py --check
       - run: python -m compileall -q backend/app scripts
