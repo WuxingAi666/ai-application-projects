@@ -6,6 +6,7 @@ Edit frontend/content/projects.json, then run this script. No API calls required
 import argparse
 import html
 import json
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -17,26 +18,42 @@ def esc(value):
     return html.escape(str(value), quote=True)
 
 
+def technical_text(value, tags):
+    # Only emphasize known terms; escape every text fragment before rendering.
+    terms = set(tags) | {'DeepSeek', 'Whisper', 'SQLite', 'SSE', 'FAISS', 'BGE-M3', 'FastAPI', 'Vue 3', 'localStorage', 'Late Fusion'}
+    pattern = '(' + '|'.join(re.escape(term) for term in sorted(terms, key=len, reverse=True)) + ')'
+    return ''.join(f'<strong class="tech-term">{esc(part)}</strong>' if part in terms else esc(part) for part in re.split(pattern, value))
+
+
 def card(p, rank):
     tags = ''.join(f'<span class="tag">{esc(t)}</span>' for t in p['tags'])
-    preview_tags = ''.join(f'<span class="tag">{esc(t)}</span>' for t in p['tags'][:4])
-    preview = ''.join(f'<li><b>{esc(k)}</b><span>{esc(v)}</span></li>' for k, v in p['preview'])
+    preview = ''.join(f'<li><b>{esc(k)}</b><span>{technical_text(v, p["tags"])}</span></li>' for k, v in p['preview'])
     bullets = ''.join(f'<li><b>{esc(k)}</b><p>{esc(v)}</p></li>' for k, v in p['highlights'])
     details = ''.join(f'<div class="detail-point"><h4>{esc(k)}</h4><p>{esc(v)}</p></div>' for k, v in p['details'])
     links = ''.join(f'<a class="detail-link" href="{esc(link["url"])}" target="_blank" rel="noopener noreferrer">{esc(link["label"])} ↗</a>' for link in p['links'])
-    github_link = next(link for link in p['links'] if 'github.com/' in link['url'])
-    quick_links = f'<a href="{esc(github_link["url"])}" target="_blank" rel="noopener noreferrer" aria-label="{esc(p["title"])}：GitHub 源码或说明">GitHub ↗</a>'
-    for link in p['links']:
-        if 'github.io/' in link['url']:
-            quick_links += f'<a href="{esc(link["url"])}" target="_blank" rel="noopener noreferrer">在线体验 ↗</a>'
+    quick_links = ''.join(f'<a href="{esc(link["url"])}" target="_blank" rel="noopener noreferrer">{esc(link["label"])} <span aria-hidden="true">↗</span></a>' for link in p['links'])
+    if p.get('assistant'):
+        quick_links += '<button type="button" class="work-assistant" data-open-assistant>体验问答助手 <span aria-hidden="true">↗</span></button>'
+    covers = {
+        'rag': ('portfolio-rag.svg', 1440, 540, '个人网站、FastAPI、BGE-M3 与 FAISS 及 DeepSeek 的全栈架构示意', '全栈架构示意'),
+        'speech': ('speech-emotion.jpg', 900, 570, '语音情感分析的波形、频谱与情感分布界面示意', '语音分析界面示意'),
+        'boss': ('boss-dashboard.jpg', 1536, 972, '求职辅助工具的本地事件记录与统计看板示意', '本地监控看板示意'),
+        'ledger': ('ledger-live.jpg', 900, 568, '个人记账本的收支记录与统计界面示意', '记账功能界面示意'),
+        'fruit': ('fruit-sample.jpg', 1536, 972, '果蔬图片的目标检测与识别场景示意', '果蔬识别场景示意'),
+        'coze': ('coze-workflow.jpg', 900, 566, '智能体、知识库与工作流节点连接示意', '工作流概念示意'),
+    }
+    image, width, height, alt, caption = covers[p['id']]
+    mobile_source = '<source media="(max-width:600px)" srcset="assets/portfolio-rag-mobile.svg">' if p['id'] == 'rag' else ''
     feature = '<span class="work-feature">重点项目</span>' if rank == 1 else ''
     return f'''<article class="work-card reveal" id="{esc(p['anchor'])}" data-project="{esc(p['id'])}">
+      <figure class="work-cover work-cover-{esc(p['id'])}"><picture>{mobile_source}<img src="assets/{image}" alt="{esc(alt)}" loading="lazy" decoding="async" width="{width}" height="{height}"></picture><figcaption>{caption}</figcaption></figure>
+      <div class="work-body">
       <div class="work-kicker"><span class="work-category"><span class="project-rank">{rank:02}</span>{esc(p['category'])}</span>{feature}</div>
       <h3 class="work-title">{esc(p['title'])}</h3>
       <p class="work-state"><span aria-hidden="true"></span>{esc(p['status'])}</p>
       <p class="work-summary">{esc(p['summary'])}</p>
       <ul class="work-highlights">{preview}</ul>
-      <div class="work-tags tags" aria-label="主要技术">{preview_tags}</div>
+      <div class="work-stack"><span class="work-stack-label">核心技术</span><div class="work-tags tags" aria-label="核心技术">{tags}</div></div>
       <div class="work-footer">
         <details class="work-detail" id="details-{esc(p['id'])}" data-title="{esc(p['title'])}" data-rank="{rank:02}">
           <summary>查看项目详情<span aria-hidden="true">↗</span></summary>
@@ -52,6 +69,7 @@ def card(p, rank):
           </div>
         </details>
         <div class="work-links">{quick_links}</div>
+      </div>
       </div>
     </article>'''
 
