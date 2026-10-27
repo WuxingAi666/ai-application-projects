@@ -26,7 +26,7 @@ def card(p, rank):
     if p.get('assistant'):
         links = '<button class="btn primary pa-card-cta" type="button" data-open-assistant>打开问答助手 ↗</button>' + links
     return f'''<article class="proj-card {esc(p['layout'])} reveal" id="{esc(p['anchor'])}" data-project="{esc(p['id'])}">
-      <div class="proj-identity"><span class="proj-index"><span class="project-rank">{rank:02}</span> {esc(p['number'])} · {esc(p['category'])}</span><span class="proj-state">{esc(p['status'])}</span></div>
+      <div class="proj-identity"><span class="proj-index"><span class="project-rank">{rank:02}</span> {esc(p['category'])}</span><span class="proj-state">{esc(p['status'])}</span></div>
       <div class="proj-top">
         <div class="proj-media project-flow"><picture><source media="(max-width:768px)" srcset="assets/project-{esc(p['id'])}-mobile.svg"><img src="assets/project-{esc(p['id'])}{desktop_suffix}.svg" alt="{esc(p['title'])}处理流程示意：{esc(' → '.join(p['pipeline']))}" loading="lazy" decoding="async"></picture></div>
         <div class="proj-body">
@@ -63,7 +63,7 @@ def resume_section(projects):
     rows = []
     for p in projects:
         bullets = ''.join(f'<li>{esc(t)}</li>' for t in p['resume'])
-        rows.append(f'<div class="rsm-t sub">{esc(p["title"])}<span class="rsm-date">{esc(p["number"])} · {esc(p["status"])}</span></div><div class="rsm-org">技术栈：{esc(" · ".join(p["tags"]))}</div><ul>{bullets}</ul>')
+        rows.append(f'<div class="rsm-t sub">{esc(p["title"])}<span class="rsm-date">{esc(p["status"])}</span></div><div class="rsm-org">技术栈：{esc(" · ".join(p["tags"]))}</div><ul>{bullets}</ul>')
     return RSTART + '\n<div class="rsm-row"><div class="rsm-k">项目经验</div><div class="rsm-v">' + ''.join(rows) + '</div></div>\n' + REND
 
 
@@ -80,7 +80,7 @@ def diagram(p, mobile=False):
 
 
 def knowledge(p):
-    lines = [f'【{p["number"]} {p["title"]}】', p['description'], f'材料依据：{p["evidence"]}。当前状态：{p["status"]}。', '', '【实际实现与实践】']
+    lines = [f'【{p["title"]}】', p['description'], f'材料依据：{p["evidence"]}。当前状态：{p["status"]}。', '', '【实际实现与实践】']
     lines += [f'{k}：{v}' for k, v in p['highlights']]
     lines += ['', '【设计与边界】'] + [f'{k}：{v}' for k, v in p['details']]
     lines += [p['note'], '', '【公开入口】'] + [f'{x["label"]}：{x["url"]}' for x in p['links']]
@@ -94,7 +94,7 @@ def main():
     parser.add_argument('--check', action='store_true')
     args = parser.parse_args()
     projects = json.loads((ROOT / 'frontend/content/projects.json').read_text(encoding='utf-8'))
-    assert len(projects) == 6 and len({p['number'] for p in projects}) == 6
+    assert len(projects) == 6 and len({p['id'] for p in projects}) == 6
     path = ROOT / 'frontend/index.html'
     source = path.read_text(encoding='utf-8')
     if START not in source:

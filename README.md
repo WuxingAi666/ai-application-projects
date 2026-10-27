@@ -6,12 +6,12 @@
 
 | 顺序 | 项目 | 当前材料 |
 | --- | --- | --- |
-| 01 / P1 | [个人作品集网站 × RAG 智能问答助手](projects/portfolio-rag) | 本地联调 · 公网后端待接入 |
-| 02 / P4 | [中文语音情感分析系统](projects/speech-emotion) | 应用原型 · 评测待完善 |
-| 03 / P3 | [BOSS 求职辅助与本地监控工具](projects/boss-assistant) | 源码公开 · 个人技术实践 |
-| 04 / P6 | [仵星的记账本](projects/ledger) | 已上线 · 本人持续使用 |
-| 05 / P2 | [果蔬成熟度识别与语音采摘辅助](projects/fruit-ripeness) | 项目经历 · 暂不提供源码 |
-| 06 / P5 | [Coze 智能体与知识库问答实践](projects/coze-practice) | 基础搭建与了解 |
+| 01 | [个人作品集网站 × RAG 智能问答助手](projects/portfolio-rag) | 本地联调 · 公网后端待接入 |
+| 02 | [中文语音情感分析系统](projects/speech-emotion) | 应用原型 · 评测待完善 |
+| 03 | [BOSS 求职辅助与本地监控工具](projects/boss-assistant) | 源码公开 · 个人技术实践 |
+| 04 | [仵星的记账本](projects/ledger) | 已上线 · 本人持续使用 |
+| 05 | [果蔬成熟度识别与语音采摘辅助](projects/fruit-ripeness) | 项目经历 · 暂不提供源码 |
+| 06 | [Coze 智能体与知识库问答实践](projects/coze-practice) | 基础搭建与了解 |
 
 ## 推荐阅读
 
