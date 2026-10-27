@@ -1,0 +1,17 @@
+.env
+.env.*
+!.env.example
+.venv/
+__pycache__/
+*.pyc
+node_modules/
+dist/
+storage/
+output/
+*.db
+*.sqlite*
+*.log
+*.pt
+*.wav
+.playwright-cli/
+/.github/workflows/

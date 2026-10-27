@@ -1,0 +1,2355 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>仵星的记账本</title>
+<style>
+/* ============ 设计变量（浅色 / 深色双主题） ============ */
+:root{
+  --bg:#F7F9FC; --card:#FFFFFF; --card2:#F0F4F0; --text:#1A1A2E; --muted:#6B7280; --line:#E5E7EB;
+  --primary:#5B8C5A; --primary-light:#E8F5E9; --primary-dark:#3D6B3C; --primary-bg:#EEF5EF;
+  --orange:#F59E0B; --orange-bg:#FEF4E2;
+  --red:#D32F2F; --red-bg:#FFEBEE;
+  --green:#2E7D32; --green-bg:#E8F5E9;
+  --shadow:0 2px 12px rgba(0,0,0,.06);
+  --radius:16px;
+}
+[data-theme="dark"]{
+  --bg:#1A2E1A; --card:#1E3A1E; --card2:#162A16; --text:#E7ECF5; --muted:#7C8AA5; --line:#2A4A2A;
+  --primary:#5B8C5A; --primary-light:#2A5A2A; --primary-dark:#3D6B3C; --primary-bg:#1A3A1A;
+  --orange:#FBBF24; --orange-bg:#3A2E14;
+  --red:#F87171; --red-bg:#3B1D1D;
+  --green:#34D399; --green-bg:#15342B;
+  --shadow:0 2px 12px rgba(0,0,0,.35);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",Roboto,sans-serif;
+  background:var(--bg);color:var(--text);font-size:15px;line-height:1.5;
+  max-width:480px;margin:0 auto;min-height:100vh;
+}
+button{font-family:inherit;border:none;background:none;color:inherit;cursor:pointer;font-size:inherit}
+input,select,textarea{font-family:inherit;font-size:16px;color:var(--text);background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--primary)}
+button:active{transform:scale(.96);opacity:.85}
+#app{display:flex;flex-direction:column;min-height:100vh}
+
+/* ============ 顶部栏 ============ */
+.app-header{
+  position:sticky;top:0;z-index:40;background:var(--card);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 16px;padding-top:calc(12px + env(safe-area-inset-top));
+  border-bottom:1px solid var(--line);
+}
+.header-title{font-size:17px;font-weight:700;letter-spacing:.5px}
+.header-title .star{color:var(--primary)}
+.header-sub{font-size:12px;color:var(--muted)}
+.theme-toggle{width:38px;height:38px;border-radius:12px;background:var(--card2);display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.theme-toggle svg{width:20px;height:20px}
+
+/* ============ 主内容 ============ */
+main{flex:1;padding:12px 12px 16px;padding-bottom:calc(84px + env(safe-area-inset-bottom))}
+.page{display:none;animation:fadeIn .22s ease}
+.page.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px;margin-bottom:12px}
+.card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.card-head h2{font-size:15px;font-weight:700;display:flex;align-items:center;gap:6px}
+.card-head h2 .dot{width:4px;height:16px;border-radius:2px;background:var(--primary);display:inline-block}
+.link-btn{color:var(--primary);font-size:13px;font-weight:600;min-height:44px;display:flex;align-items:center}
+.icon-btn{width:32px;height:32px;border-radius:10px;background:var(--primary-bg);color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700}
+.empty-tip{color:var(--muted);font-size:13px;text-align:center;padding:14px 0}
+
+/* ============ 今日要处理（置顶） ============ */
+.todo-top{border-left:none}
+.todo-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px dashed var(--line);min-height:48px}
+.todo-item:last-child{border-bottom:none}
+.todo-check{width:22px;height:22px;border-radius:7px;border:2px solid var(--line);flex:0 0 auto;display:flex;align-items:center;justify-content:center;background:var(--card)}
+.todo-item.done .todo-check{background:var(--green);border-color:var(--green)}
+.todo-check svg{width:14px;height:14px;color:#fff;opacity:0}
+.todo-item.done .todo-check svg{opacity:1}
+.todo-body{flex:1;min-width:0}
+.todo-title{font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.todo-item.done .todo-title{color:var(--muted);text-decoration:line-through}
+.todo-meta{font-size:12px;color:var(--muted)}
+.todo-item.overdue .todo-title{color:var(--red)}
+.todo-item.overdue .todo-meta .od-badge{color:var(--red);font-weight:700;background:var(--red-bg);border-radius:6px;padding:1px 6px;margin-right:4px}
+.todo-actions{display:flex;gap:4px;flex:0 0 auto}
+.todo-actions button{width:34px;height:34px;border-radius:9px;background:var(--card2);display:flex;align-items:center;justify-content:center}
+.todo-actions svg{width:16px;height:16px;color:var(--muted)}
+
+/* ============ 核心数据 hero 卡 ============ */
+.hero-card{
+  background:linear-gradient(135deg,var(--primary-dark),var(--primary));
+  border-radius:20px;padding:18px 16px;color:#fff;margin-bottom:12px;box-shadow:0 6px 20px rgba(91,140,90,.28);
+  position:relative;overflow:hidden;
+}
+.hero-card.warn{background:linear-gradient(135deg,#D97706,var(--orange));box-shadow:0 6px 20px rgba(245,158,11,.3)}
+.hero-card.danger{background:linear-gradient(135deg,#DC2626,var(--red));box-shadow:0 6px 20px rgba(239,68,68,.3)}
+.hero-card::after{content:"";position:absolute;right:-40px;top:-40px;width:150px;height:150px;border-radius:50%;background:rgba(255,255,255,.08)}
+.hero-top{display:flex;justify-content:space-between;align-items:center;gap:10px;position:relative;z-index:1}
+.hero-label{font-size:12px;opacity:.85;display:flex;align-items:center;gap:8px}
+.hero-switch{display:flex;align-items:center;gap:5px;font-size:11px;background:rgba(255,255,255,.16);padding:3px 9px;border-radius:999px}
+.hero-switch input{width:auto;margin:0;accent-color:#fff;min-height:0}
+.hero-amount{font-size:38px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-1px;margin-top:2px}
+/* 固定支出行样式 */
+.fx-row{display:flex;gap:6px;margin-bottom:8px;align-items:center}
+.fx-row input{padding:8px}
+.fx-row .fx-del{width:38px;height:38px;border-radius:9px;background:var(--red-bg);color:var(--red);flex:0 0 auto;font-size:16px}
+.hero-amount small{font-size:16px;font-weight:600;margin-right:2px}
+.hero-ring{flex:0 0 auto;width:86px;height:86px;position:relative}
+.hero-ring .ring-text{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;line-height:1.25}
+.hero-ring .ring-text b{font-size:15px;font-variant-numeric:tabular-nums}
+.hero-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:14px;position:relative;z-index:1}
+.hero-stat{flex:1;background:rgba(255,255,255,.14);border-radius:12px;padding:8px 6px;text-align:center}
+.hero-stat .hs-label{font-size:11px;opacity:.8}
+.hero-stat .hs-val{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:1px}
+
+/* ============ 快速记账 ============ */
+.seg{display:flex;background:var(--card2);border-radius:12px;padding:3px;gap:3px;margin-bottom:10px}
+.seg button{flex:1;min-height:38px;border-radius:9px;font-size:13px;font-weight:600;color:var(--muted)}
+.seg button.on{background:var(--card);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,.1)}
+.seg.type-exp button.on{background:var(--red);color:#fff}
+.seg.type-inc button.on{background:var(--green);color:#fff}
+.cat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px}
+.cat-cell{border:1.5px solid var(--line);border-radius:12px;padding:8px 2px;text-align:center;font-size:12px;background:var(--card2);min-height:48px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
+.cat-cell svg{width:20px;height:20px}
+.cat-emoji{font-size:20px;line-height:1}
+.cat-cell.on{border-color:var(--primary);background:var(--primary-bg);color:var(--primary);font-weight:700}
+.amount-row{display:flex;gap:8px;margin-bottom:10px}
+.amount-row .amt-wrap{flex:1;position:relative}
+.amount-row .amt-wrap span{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:18px;font-weight:700;color:var(--muted)}
+.amount-row input{font-size:22px;font-weight:800;padding-left:32px;height:50px;font-variant-numeric:tabular-nums}
+.voice-btn{width:52px;height:50px;border-radius:10px;background:var(--primary-bg);color:var(--primary);display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.voice-btn svg{width:22px;height:22px}
+.field-row{display:flex;gap:8px;margin-bottom:10px}
+.field-col{flex:1;min-width:0}
+.field-label{font-size:12px;color:var(--muted);margin-bottom:4px;display:block}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:12px;padding:4px 10px;border-radius:999px;background:var(--card2);border:1px solid var(--line);color:var(--muted);min-height:30px;display:flex;align-items:center}
+.chip.on{background:var(--primary-bg);border-color:var(--primary);color:var(--primary);font-weight:600}
+.submit-btn{width:100%;min-height:48px;border-radius:12px;background:var(--primary);color:#fff;font-size:16px;font-weight:700;letter-spacing:2px;box-shadow:0 4px 12px rgba(91,140,90,.3)}
+.tpl-scroll{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-top:10px}
+.tpl-scroll::-webkit-scrollbar{display:none}
+.tpl-pill{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:2px;background:var(--primary-bg);border-radius:12px;padding:8px 14px;color:var(--primary);min-height:52px;justify-content:center}
+.tpl-pill b{font-size:14px;font-variant-numeric:tabular-nums}
+.tpl-pill span{font-size:11px;opacity:.85}
+
+/* ============ 时段面板 ============ */
+.period-panel .pp-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.pp-name{font-size:14px;font-weight:700;color:var(--primary)}
+.pp-range{font-size:11px;color:var(--muted)}
+.pp-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.pp-cell{background:var(--card2);border-radius:10px;padding:7px 4px;text-align:center}
+.pp-cell .k{font-size:10px;color:var(--muted)}
+.pp-cell .v{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:1px}
+
+/* ============ 明细列表 ============ */
+.rec-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px dashed var(--line);min-height:56px}
+.rec-item:last-child{border-bottom:none}
+.rec-icon{width:38px;height:38px;border-radius:12px;background:var(--card2);display:flex;align-items:center;justify-content:center;flex:0 0 auto;font-size:20px}
+.cat-emoji{font-size:20px;line-height:1}
+.rec-body{flex:1;min-width:0}
+.rec-title{font-size:14px;font-weight:600;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.tag-mini{font-size:10px;background:var(--primary-bg);color:var(--primary);border-radius:5px;padding:1px 5px}
+.badge-large{font-size:10px;background:var(--orange-bg);color:var(--orange);border-radius:5px;padding:1px 5px;font-weight:600}
+.badge-fixed{font-size:10px;background:var(--card2);color:var(--muted);border-radius:5px;padding:1px 5px}
+.rec-note{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rec-amount{font-size:16px;font-weight:800;font-variant-numeric:tabular-nums;flex:0 0 auto}
+.rec-amount.exp{color:var(--red)}
+.rec-amount.inc{color:var(--green)}
+.rec-amount .plus{font-size:12px;font-weight:600}
+
+/* ============ 底部 Tab ============ */
+.tabbar{
+  position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;z-index:50;
+  background:var(--card);border-top:1px solid var(--line);
+  display:flex;padding-bottom:env(safe-area-inset-bottom);
+}
+.tabbar button{flex:1;min-height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:11px;color:var(--muted);font-weight:600}
+.tabbar button svg{width:22px;height:22px}
+.tabbar button.on{color:var(--primary)}
+
+/* ============ 统计页 ============ */
+.dim-tabs{display:flex;background:var(--card);border-radius:12px;padding:3px;gap:3px;margin-bottom:12px}
+.dim-tabs button{flex:1;min-height:38px;border-radius:9px;font-size:13px;font-weight:600;color:var(--muted)}
+.dim-tabs button.on{background:var(--primary);color:#fff}
+.range-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.range-nav .rn-title{font-size:15px;font-weight:700}
+.range-nav button{width:40px;height:40px;border-radius:12px;background:var(--card);box-shadow:var(--shadow);display:flex;align-items:center;justify-content:center}
+.range-nav svg{width:18px;height:18px;color:var(--muted)}
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.stat-cell{background:var(--card);border-radius:12px;padding:10px 4px;text-align:center;box-shadow:var(--shadow)}
+.stat-cell .k{font-size:11px;color:var(--muted)}
+.stat-cell .v{font-size:14px;font-weight:800;font-variant-numeric:tabular-nums;margin-top:2px}
+.stat-cell .v.exp{color:var(--red)}
+.stat-cell .v.inc{color:var(--green)}
+.switch-row{display:flex;align-items:center;justify-content:space-between;background:var(--card);border-radius:12px;padding:10px 14px;margin-bottom:12px;box-shadow:var(--shadow);font-size:13px}
+.switch-row .sr-right{display:flex;align-items:center;gap:8px}
+.toggle{position:relative;width:44px;height:26px;flex:0 0 auto}
+.toggle input{opacity:0;width:100%;height:100%;position:absolute;margin:0}
+.toggle .tg-slider{position:absolute;inset:0;background:var(--line);border-radius:999px;transition:.2s}
+.toggle .tg-slider::after{content:"";position:absolute;width:20px;height:20px;border-radius:50%;background:#fff;top:3px;left:3px;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.toggle input:checked+.tg-slider{background:var(--primary)}
+.toggle input:checked+.tg-slider::after{left:21px}
+.chart-legend{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.lg-item{display:flex;align-items:center;gap:5px;font-size:12px;background:var(--card2);border-radius:999px;padding:4px 10px;min-height:30px}
+.lg-item i{width:10px;height:10px;border-radius:3px;display:inline-block;flex:0 0 auto}
+.lg-item .lg-pct{color:var(--muted);font-size:11px}
+.lg-item.over b{color:var(--red)}
+
+/* ============ 分组页 ============ */
+.group-card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px;margin-bottom:12px}
+.group-card .gc-head{display:flex;justify-content:space-between;align-items:flex-start}
+.group-card .gc-name{font-size:15px;font-weight:700}
+.group-card .gc-range{font-size:12px;color:var(--muted);margin-top:2px}
+.group-card .gc-status{font-size:11px;font-weight:700;border-radius:8px;padding:3px 8px;flex:0 0 auto}
+.gc-status.ongoing{background:var(--green-bg);color:var(--green)}
+.gc-status.ended{background:var(--card2);color:var(--muted)}
+.gc-status.future{background:var(--primary-bg);color:var(--primary)}
+.gc-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px}
+.gc-stats .pp-cell{background:var(--bg)}
+.add-fab{width:100%;min-height:48px;border-radius:12px;border:1.5px dashed var(--primary);color:var(--primary);font-size:14px;font-weight:600;background:var(--primary-bg)}
+
+/* ============ 子页返回头 ============ */
+.subpage-head{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.subpage-head .back{width:40px;height:40px;border-radius:12px;background:var(--card);box-shadow:var(--shadow);display:flex;align-items:center;justify-content:center}
+.subpage-head .back svg{width:18px;height:18px;color:var(--muted)}
+.subpage-head h2{font-size:16px;font-weight:700}
+.subpage-head .sp-sub{font-size:11px;color:var(--muted);font-weight:400}
+
+/* ============ 设置页 ============ */
+.set-group{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:12px;overflow:hidden}
+.set-group .sg-title{font-size:12px;color:var(--muted);padding:12px 14px 4px;font-weight:600}
+.set-item{display:flex;align-items:center;justify-content:space-between;padding:13px 14px;border-bottom:1px solid var(--line);gap:10px;min-height:50px}
+.set-item:last-child{border-bottom:none}
+.set-item .si-left{display:flex;align-items:center;gap:10px;flex:1;min-width:0}
+.set-item .si-icon{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.set-item .si-icon svg{width:18px;height:18px}
+.set-item .si-name{font-size:14px;font-weight:600}
+.set-item .si-desc{font-size:11px;color:var(--muted)}
+.set-item .si-right{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:13px;flex:0 0 auto}
+.set-item.danger-item .si-name{color:var(--red)}
+.btn-mini{font-size:12px;font-weight:600;padding:6px 12px;border-radius:9px;min-height:34px;background:var(--primary-bg);color:var(--primary)}
+.btn-mini.warn{background:var(--red-bg);color:var(--red)}
+.btn-mini.gray{background:var(--card2);color:var(--muted)}
+
+/* ============ 弹窗 ============ */
+.modal-mask{position:fixed;inset:0;background:rgba(10,15,30,.7);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);z-index:100;display:none;align-items:flex-end;justify-content:center}
+.modal-mask.show{display:flex;animation:maskIn .2s ease}
+@keyframes maskIn{from{opacity:0}to{opacity:1}}
+.modal{background:var(--card);width:100%;max-width:480px;border-radius:22px 22px 0 0;padding:16px 16px calc(18px + env(safe-area-inset-bottom));max-height:88vh;overflow-y:auto;animation:slideUp .25s ease}
+@keyframes slideUp{from{transform:translateY(40px);opacity:.5}to{transform:none;opacity:1}}
+.modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.modal-head h3{font-size:16px;font-weight:700}
+.modal-close{width:32px;height:32px;border-radius:10px;background:var(--card2);color:var(--muted);font-size:16px;display:flex;align-items:center;justify-content:center}
+.modal .cat-grid{max-height:200px;overflow-y:auto}
+.form-footer{display:flex;gap:10px;margin-top:14px}
+.form-footer button{flex:1;min-height:46px;border-radius:12px;font-size:15px;font-weight:700}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-ghost{background:var(--card2);color:var(--muted)}
+.btn-danger{background:var(--red);color:#fff}
+.btn-green{background:var(--green);color:#fff}
+
+/* 固定支出编辑行 */
+.fx-row{display:flex;gap:6px;margin-bottom:8px;align-items:center}
+.fx-row input{padding:8px}
+.fx-row .fx-del{width:38px;height:38px;border-radius:9px;background:var(--red-bg);color:var(--red);flex:0 0 auto;font-size:16px}
+
+/* 备份列表 */
+.bk-item{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px dashed var(--line)}
+.bk-item:last-child{border-bottom:none}
+.bk-item .bk-info b{font-size:14px}
+.bk-item .bk-info span{display:block;font-size:11px;color:var(--muted)}
+
+/* toast */
+#toast{position:fixed;left:50%;bottom:calc(120px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);background:rgba(23,32,52,.92);color:#fff;font-size:13px;padding:10px 18px;border-radius:999px;z-index:200;opacity:0;pointer-events:none;transition:.25s;max-width:86%;text-align:center}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.err{background:rgba(190,30,30,.95)}
+
+/* 语音弹窗动画 */
+.mic-pulse{width:72px;height:72px;border-radius:50%;background:var(--primary-bg);color:var(--primary);display:flex;align-items:center;justify-content:center;margin:10px auto;animation:pulse 1.4s infinite}
+.mic-pulse svg{width:30px;height:30px}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(91,140,90,.35)}70%{box-shadow:0 0 0 18px rgba(91,140,90,0)}100%{box-shadow:0 0 0 0 rgba(91,140,90,0)}}
+.voice-result{background:var(--card2);border-radius:12px;padding:12px;font-size:14px;min-height:52px;margin-top:10px;color:var(--muted)}
+.voice-result b{color:var(--text)}
+
+/* 筛选条 */
+.filter-bar{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.filter-bar select,.filter-bar input{font-size:13px;padding:8px 10px;min-height:44px}
+.filter-bar .fb-s{width:auto;flex:0 0 auto}
+.filter-bar .fb-amt{width:88px;flex:0 0 auto}
+.list-count{font-size:12px;color:var(--muted);margin-bottom:6px;padding:0 2px}
+svg text{font-family:inherit}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- ============ 顶部栏 ============ -->
+  <header class="app-header">
+    <div>
+      <div class="header-title"><span class="star">★</span> <span id="appNameHeader">仵星的记账本</span></div>
+      <div class="header-sub" id="headerDate"></div>
+    </div>
+    <button class="theme-toggle" id="btnTheme" aria-label="切换深色模式"></button>
+  </header>
+
+  <main id="main">
+    <!-- ============ 首页 ============ -->
+    <section id="page-home" class="page active">
+      <!-- 1. 今天要处理（强制置顶） -->
+      <div class="card" id="homeTodoCard">
+        <div class="card-head">
+          <h2><span class="dot" style="background:var(--orange)"></span>今天要处理</h2>
+          <button class="icon-btn" id="btnAddTodoQuick" aria-label="新增待办">＋</button>
+        </div>
+        <ul id="homeTodoList"></ul>
+      </div>
+
+      <!-- 2. 核心数据概览 -->
+      <div class="hero-card" id="heroCard">
+        <div class="hero-top">
+          <div class="hero-main">
+            <div class="hero-label">今日花费
+              <label class="hero-switch"><input type="checkbox" id="excludeLargeHome">排除大额</label>
+            </div>
+            <div class="hero-amount"><small>¥</small><span id="homeTodaySpend">0</span></div>
+          </div>
+          <div class="hero-ring" id="homeBudgetRing"></div>
+        </div>
+        <div class="hero-stats">
+          <!-- 优化-固定支出：拆分日常/固定支出独立展示 -->
+          <div class="hero-stat" id="hsDaily"><div class="hs-label">日常支出</div><div class="hs-val" id="homeDailySpend">¥0</div></div>
+          <div class="hero-stat" id="hsFixed"><div class="hs-label">固定支出</div><div class="hs-val" id="homeFixedSpend">¥0</div></div>
+          <div class="hero-stat" id="hsBudget"><div class="hs-label">可用预算</div><div class="hs-val" id="homeBudgetLeft">--</div></div>
+          <div class="hero-stat" id="hsSavings"><div class="hs-label">储蓄剩余</div><div class="hs-val" id="homeSavingsLeft">--</div></div>
+        </div>
+      </div>
+
+      <!-- 3. 快速记账 -->
+      <div class="card">
+        <div class="card-head"><h2><span class="dot"></span>快速记账</h2><span style="font-size:11px;color:var(--muted)" id="quickGroupHint"></span></div>
+        <div class="seg" id="segMode">
+          <button data-v="daily" class="on">日常记账</button>
+          <button data-v="large">时段大额</button>
+        </div>
+        <div class="seg type-exp" id="segType">
+          <button data-v="expense" class="on">支出</button>
+          <button data-v="income">收入</button>
+        </div>
+        <div class="cat-grid" id="quickCatGrid"></div>
+        <div class="amount-row">
+          <div class="amt-wrap"><span>¥</span><input type="number" id="quickAmount" inputmode="decimal" step="0.01" min="0" placeholder="0.00"></div>
+          <button class="voice-btn" id="btnVoice" aria-label="语音记账">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></svg>
+          </button>
+        </div>
+        <div class="field-row">
+          <div class="field-col"><label class="field-label">日期</label><input type="date" id="quickDate"></div>
+          <div class="field-col"><label class="field-label">备注</label><input type="text" id="quickNote" placeholder="选填" maxlength="50"></div>
+        </div>
+        <div class="field-col" style="margin-bottom:12px"><label class="field-label">标签（可多选）</label><div class="chips" id="quickTags"></div></div>
+        <button class="submit-btn" id="btnQuickSubmit">记 一 笔</button>
+        <div class="tpl-scroll" id="tplScroll"></div>
+      </div>
+
+      <!-- 4. 当前时段面板 -->
+      <div class="card period-panel" id="homePeriodPanel" style="display:none"></div>
+
+      <!-- 5. 今日明细 -->
+      <div class="card">
+        <div class="card-head">
+          <h2><span class="dot" style="background:var(--green)"></span>今日明细</h2>
+          <button class="link-btn" id="btnAllRecords">查看全部 ›</button>
+        </div>
+        <ul id="homeTodayList"></ul>
+      </div>
+    </section>
+
+    <!-- ============ 统计页 ============ -->
+    <section id="page-stats" class="page">
+      <div class="dim-tabs" id="dimTabs">
+        <button data-v="day">日</button>
+        <button data-v="week">周</button>
+        <button data-v="month" class="on">月</button>
+        <button data-v="group">时段</button>
+      </div>
+      <div class="range-nav">
+        <button id="statPrev" aria-label="上一周期"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+        <div class="rn-title" id="statTitle"></div>
+        <button id="statNext" aria-label="下一周期"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
+      </div>
+      <div class="stat-grid" id="statGrid"></div>
+      <div class="switch-row">
+        <span>排除大额消费（当日/周期统计仅计日常记账）</span>
+        <div class="sr-right"><span style="font-size:12px;color:var(--muted)" id="largeToggleHint"></span>
+          <label class="toggle"><input type="checkbox" id="excludeLargeStats"><span class="tg-slider"></span></label>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2><span class="dot"></span>分类支出占比</h2></div>
+        <div id="pieBox" style="text-align:center"></div>
+        <div class="chart-legend" id="pieLegend"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2><span class="dot" style="background:var(--green)"></span>每日收支柱状图</h2></div>
+        <div id="barBox"></div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <h2><span class="dot" style="background:var(--orange)"></span>周期明细</h2>
+          <button class="link-btn" id="btnStatsAll">全部记录 ›</button>
+        </div>
+        <ul id="statRecordList"></ul>
+      </div>
+    </section>
+
+    <!-- ============ 分组页 ============ -->
+    <section id="page-groups" class="page">
+      <div class="card">
+        <div class="card-head"><h2><span class="dot"></span>时段分组</h2></div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.7">
+          以「时段分组」为统计容器（如 8.15 发薪日 ~ 9.14 发薪日），一笔记录可同时归属多个重叠分组；自然月统计始终保留，删除分组不会删除记录。
+        </div>
+      </div>
+      <div id="groupList"></div>
+      <button class="add-fab" id="btnAddGroup">＋ 新建时段分组</button>
+    </section>
+
+    <!-- ============ 分组详情子页 ============ -->
+    <section id="page-group-detail" class="page">
+      <div class="subpage-head">
+        <button class="back" id="btnBackFromDetail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+        <div><h2 id="gdName"></h2><div class="sp-sub" id="gdRange"></div></div>
+        <button class="btn-mini" id="btnEditGroup" style="margin-left:auto">✏️ 编辑分组</button>
+      </div>
+      <div class="stat-grid" id="gdGrid"></div>
+      <div class="card">
+        <div class="card-head"><h2><span class="dot"></span>预算与储蓄</h2></div>
+        <div id="gdBudget"></div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <h2><span class="dot" style="background:var(--orange)"></span>分类占比</h2>
+          <div class="seg" style="margin:0;width:240px" id="gdCatSeg">
+            <button data-v="daily" class="on" style="min-height:32px;font-size:12px">日常</button>
+            <button data-v="large" style="min-height:32px;font-size:12px">大额</button>
+            <button data-v="fixed" style="min-height:32px;font-size:12px">固定</button>
+            <button data-v="all" style="min-height:32px;font-size:12px">合计</button>
+          </div>
+        </div>
+        <div id="gdPie" style="text-align:center"></div>
+        <div class="chart-legend" id="gdLegend"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2><span class="dot" style="background:var(--green)"></span>每日消费柱状图</h2></div>
+        <div id="gdBar"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2 id="gdRecListTitle"><span class="dot" style="background:var(--primary)"></span>日常消费明细</h2></div>
+        <ul id="gdRecList"></ul>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2><span class="dot"></span>周期对比（上一周期）</h2></div>
+        <div id="gdCompare"></div>
+      </div>
+    </section>
+
+    <!-- ============ 待办页 ============ -->
+    <section id="page-todos" class="page">
+      <button class="add-fab" id="btnAddTodo" style="margin-bottom:12px">＋ 新增待办</button>
+      <div class="card">
+        <div class="card-head">
+          <h2><span class="dot" style="background:var(--red)"></span>逾期 / 今天</h2>
+        </div>
+        <ul id="todoTodayList"></ul>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <h2><span class="dot" style="background:var(--primary)"></span>未来待办</h2>
+        </div>
+        <ul id="todoFutureList"></ul>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2><span class="dot" style="background:var(--green)"></span>已完成</h2></div>
+        <ul id="todoDoneList"></ul>
+      </div>
+    </section>
+
+    <!-- ============ 历史记录子页 ============ -->
+    <section id="page-records" class="page">
+      <div class="subpage-head">
+        <button class="back" id="btnBackFromRecords"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+        <div><h2>全部记录</h2><div class="sp-sub">按日期、分类、标签、金额筛选</div></div>
+      </div>
+      <div class="filter-bar">
+        <input type="date" id="fltStart" class="fb-s" title="开始日期">
+        <input type="date" id="fltEnd" class="fb-s" title="结束日期">
+        <select id="fltCat" class="fb-s"><option value="">全部分类</option></select>
+        <select id="fltTag" class="fb-s"><option value="">全部标签</option></select>
+        <input type="number" id="fltMin" class="fb-amt" placeholder="金额≥" inputmode="decimal">
+        <input type="number" id="fltMax" class="fb-amt" placeholder="金额≤" inputmode="decimal">
+        <button class="btn-mini gray" id="btnFltReset" style="min-height:44px">重置</button>
+      </div>
+      <div class="list-count" id="recCount"></div>
+      <div class="card"><ul id="allRecordList"></ul></div>
+    </section>
+
+    <!-- ============ 设置页 ============ -->
+    <section id="page-settings" class="page">
+      <div class="set-group">
+        <div class="sg-title">基础配置</div>
+        <div class="set-item" id="setCategories">
+          <div class="si-left"><div class="si-icon" style="background:var(--primary-bg);color:var(--primary)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></div>
+          <div><div class="si-name">分类管理</div><div class="si-desc" id="catCountDesc"></div></div></div>
+          <span class="si-right">›</span>
+        </div>
+        <div class="set-item" id="setTemplates">
+          <div class="si-left"><div class="si-icon" style="background:var(--green-bg);color:var(--green)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l2.1 4.9L19 10l-4.9 2.1L12 17l-2.1-4.9L5 10l4.9-2.1z"/></svg></div>
+          <div><div class="si-name">快捷记账模板</div><div class="si-desc" id="tplCountDesc"></div></div></div>
+          <span class="si-right">›</span>
+        </div>
+        <div class="set-item" id="setTags">
+          <div class="si-left"><div class="si-icon" style="background:var(--orange-bg);color:var(--orange)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12l-8 8-9-9V4h7z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg></div>
+          <div><div class="si-name">标签管理</div><div class="si-desc" id="tagCountDesc"></div></div></div>
+          <span class="si-right">›</span>
+        </div>
+      </div>
+      <div class="set-group">
+        <div class="sg-title">数据管理</div>
+        <div class="set-item" id="btnExportJson">
+          <div class="si-left"><div class="si-icon" style="background:var(--primary-bg);color:var(--primary)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 21h16"/></svg></div>
+          <div><div class="si-name">导出 JSON 备份</div><div class="si-desc">完整备份全部数据，可恢复</div></div></div>
+        </div>
+        <div class="set-item" id="btnExportCsv">
+          <div class="si-left"><div class="si-icon" style="background:var(--green-bg);color:var(--green)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 21h16"/></svg></div>
+          <div><div class="si-name">导出 CSV 明细</div><div class="si-desc">记账记录导出，Excel 可打开</div></div></div>
+        </div>
+        <div class="set-item" id="btnImportJson">
+          <div class="si-left"><div class="si-icon" style="background:var(--primary-bg);color:var(--primary)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 15V3"/><path d="M7 8l5-5 5 5"/><path d="M4 21h16"/></svg></div>
+          <div><div class="si-name">导入 JSON 恢复</div><div class="si-desc">导入前校验格式，错误不破坏原数据</div></div></div>
+        </div>
+        <div class="set-item" id="btnBackupList">
+          <div class="si-left"><div class="si-icon" style="background:var(--orange-bg);color:var(--orange)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div>
+          <div><div class="si-name">自动备份</div><div class="si-desc" id="bkDesc">每日自动快照，保留最近 7 天</div></div></div>
+          <span class="si-right">›</span>
+        </div>
+        <div class="set-item" id="btnClearDemo" style="display:none">
+          <div class="si-left"><div class="si-icon" style="background:var(--orange-bg);color:var(--orange)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 5l-9 9"/><path d="M6 6l12 12"/><path d="M5 13l6 6"/></svg></div>
+          <div><div class="si-name">清空示例数据</div><div class="si-desc">仅删除预置示例（记账/待办/分组/模板）</div></div></div>
+          <span class="si-right">›</span>
+        </div>
+        <div class="set-item danger-item" id="btnClearAll">
+          <div class="si-left"><div class="si-icon" style="background:var(--red-bg);color:var(--red)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/></svg></div>
+          <div><div class="si-name">清空所有数据</div><div class="si-desc">危险操作，需二次确认</div></div></div>
+        </div>
+      </div>
+      <div class="set-group">
+        <div class="sg-title">显示设置</div>
+        <div class="set-item">
+          <div class="si-left"><div class="si-icon" style="background:var(--primary-bg);color:var(--primary)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h10M4 17h7"/></svg></div>
+          <div><div class="si-name">记账本名称</div><div class="si-desc">自定义首页与标题显示名称</div></div></div>
+          <input id="setAppName" maxlength="20" placeholder="仵星的记账本" style="width:130px;min-height:38px;font-size:13px;text-align:right;padding:0 10px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text);outline:none">
+        </div>
+        <div class="set-item">
+          <div class="si-left"><div class="si-icon" style="background:var(--primary-bg);color:var(--primary)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg></div>
+          <div><div class="si-name">深色模式</div></div></div>
+          <label class="toggle"><input type="checkbox" id="setDarkMode"><span class="tg-slider"></span></label>
+        </div>
+        <div class="set-item">
+          <div class="si-left"><div class="si-icon" style="background:var(--green-bg);color:var(--green)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg></div>
+          <div><div class="si-name">默认统计维度</div></div></div>
+          <select id="setDefaultDim" style="width:110px;min-height:38px;font-size:13px">
+            <option value="day">日</option><option value="week">周</option><option value="month" selected>月</option><option value="group">时段</option>
+          </select>
+        </div>
+      </div>
+      <div class="set-group">
+        <div class="sg-title">关于</div>
+        <div class="set-item">
+          <div class="si-left"><div><div class="si-name" id="appNameAbout">仵星的记账本</div><div class="si-desc">v1.0 · 离线优先 · 数据完全本地存储</div></div></div>
+          <span class="si-right">★</span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============ 底部导航 ============ -->
+  <nav class="tabbar" id="tabbar">
+    <button data-page="home" class="on">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>首页
+    </button>
+    <button data-page="stats">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg>统计
+    </button>
+    <button data-page="groups">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18"/><path d="M8 2v4M16 2v4"/></svg>分组
+    </button>
+    <button data-page="todos">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>待办
+    </button>
+    <button data-page="settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5h.1a1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>设置
+    </button>
+  </nav>
+</div>
+
+<!-- ============ 弹窗：记账编辑 ============ -->
+<div class="modal-mask" id="modalRecord">
+  <div class="modal">
+    <div class="modal-head"><h3 id="mrTitle">编辑记录</h3><button class="modal-close" data-close="modalRecord">✕</button></div>
+    <div class="seg" id="mrSegMode">
+      <button data-v="daily" class="on">日常记账</button>
+      <button data-v="large">时段大额</button>
+    </div>
+    <div class="seg type-exp" id="mrSegType" style="margin-top:8px">
+      <button data-v="expense" class="on">支出</button>
+      <button data-v="income">收入</button>
+    </div>
+    <div class="cat-grid" id="mrCatGrid" style="margin-top:10px"></div>
+    <div class="amount-row" style="margin-top:10px">
+      <div class="amt-wrap"><span>¥</span><input type="number" id="mrAmount" inputmode="decimal" step="0.01" min="0" placeholder="0.00"></div>
+    </div>
+    <div class="field-row">
+      <div class="field-col"><label class="field-label">日期</label><input type="date" id="mrDate"></div>
+      <div class="field-col"><label class="field-label">备注</label><input type="text" id="mrNote" maxlength="50" placeholder="选填"></div>
+    </div>
+    <div class="field-col" style="margin-bottom:10px"><label class="field-label">标签</label><div class="chips" id="mrTags"></div></div>
+    <div class="field-col" style="margin-bottom:10px"><label class="field-label">所属分组（自动归属，可手动调整）</label><div class="chips" id="mrGroups"></div></div>
+    <div class="mr-fixed-note" id="mrFixedNote" style="display:none;margin:4px 2px 10px;font-size:12px;color:var(--muted);background:var(--card2);border-radius:10px;padding:8px 10px;line-height:1.6">🔒 此为固定支出自动生成记录，无法直接删除。如需移除，请前往对应分组的编辑页，删除对应的固定支出配置项。</div>
+    <div class="form-footer">
+      <button class="btn-ghost" id="mrCopy">复制</button>
+      <button class="btn-ghost" id="mrDelete" style="color:var(--red)">删除</button>
+      <button class="btn-primary" id="mrSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 弹窗：分组编辑 ============ -->
+<div class="modal-mask" id="modalGroup">
+  <div class="modal">
+    <div class="modal-head"><h3 id="mgTitle">新建时段分组</h3><button class="modal-close" data-close="modalGroup">✕</button></div>
+    <div class="field-row">
+      <div class="field-col"><label class="field-label">分组名称</label><input type="text" id="mgName" maxlength="20" placeholder="如：8月发薪周期"></div>
+    </div>
+    <div class="field-row">
+      <div class="field-col"><label class="field-label">开始日期</label><input type="date" id="mgStart"></div>
+      <div class="field-col"><label class="field-label">结束日期</label><input type="date" id="mgEnd"></div>
+    </div>
+    <div class="field-row">
+      <div class="field-col"><label class="field-label">周期工资收入 ¥</label><input type="number" id="mgSalary" inputmode="decimal" min="0" placeholder="0.00"></div>
+    </div>
+    <div class="field-col" style="margin-bottom:10px">
+      <label class="field-label">固定支出（前置扣除，不占用可用预算；到达扣款日自动生成记录）</label>
+      <div id="mgFixedList"></div>
+      <button class="btn-mini" id="mgAddFixed" style="margin-top:2px">＋ 添加固定支出</button>
+    </div>
+    <div class="field-row">
+      <div class="field-col"><label class="field-label">可用预算 ¥</label><input type="number" id="mgBudget" inputmode="decimal" min="0" placeholder="0.00"></div>
+      <div class="field-col"><label class="field-label">储蓄目标 ¥</label><input type="number" id="mgSavings" inputmode="decimal" min="0" placeholder="0.00"></div>
+    </div>
+    <div class="field-col" style="margin-bottom:10px">
+      <label class="field-label">分类预算（可选，单分类超支红色提醒）</label>
+      <div id="mgCatBudgetList"></div>
+      <button class="btn-mini" id="mgAddCatBudget">＋ 添加分类预算</button>
+    </div>
+    <div id="mgFormula" style="font-size:11px;color:var(--muted);background:var(--card2);border-radius:10px;padding:8px 10px;line-height:1.6;margin-top:6px"></div>
+    <div class="form-footer">
+      <button class="btn-ghost" id="mgDelete">删除分组</button>
+      <button class="btn-primary" id="mgSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 弹窗：待办编辑 ============ -->
+<div class="modal-mask" id="modalTodo">
+  <div class="modal">
+    <div class="modal-head"><h3 id="mtTitle">新增待办</h3><button class="modal-close" data-close="modalTodo">✕</button></div>
+    <div class="field-row"><div class="field-col"><label class="field-label">事项名称</label><input type="text" id="mtTitleInput" maxlength="30" placeholder="如：交房租"></div></div>
+    <div class="field-row">
+      <div class="field-col"><label class="field-label">提醒日期</label><input type="date" id="mtDate"></div>
+      <div class="field-col"><label class="field-label">关联金额 ¥（选填）</label><input type="number" id="mtAmount" inputmode="decimal" min="0" placeholder="完成时可联动记账"></div>
+    </div>
+    <div class="form-footer">
+      <button class="btn-ghost" id="mtDelete">删除</button>
+      <button class="btn-primary" id="mtSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 弹窗：模板编辑 ============ -->
+<div class="modal-mask" id="modalTemplate">
+  <div class="modal">
+    <div class="modal-head"><h3>快捷记账模板</h3><button class="modal-close" data-close="modalTemplate">✕</button></div>
+    <div id="tplList"></div>
+    <div style="border-top:1px solid var(--line);margin-top:10px;padding-top:10px">
+      <div class="field-row"><div class="field-col"><label class="field-label">模板名称</label><input type="text" id="tpName" maxlength="12" placeholder="如：公司午餐"></div></div>
+      <div class="seg" id="tpSegType" style="margin:8px 0">
+        <button data-v="expense" class="on">支出</button>
+        <button data-v="income">收入</button>
+      </div>
+      <div class="field-row">
+        <div class="field-col"><label class="field-label">分类</label><select id="tpCat"></select></div>
+        <div class="field-col"><label class="field-label">金额 ¥</label><input type="number" id="tpAmount" inputmode="decimal" min="0" placeholder="0.00"></div>
+      </div>
+      <div class="field-col"><label class="field-label">默认标签（选填）</label><input type="text" id="tpTag" maxlength="20" placeholder="如：工作日午餐"></div>
+      <button class="btn-mini" id="tpSave" style="margin-top:10px;width:100%;min-height:44px">＋ 保存模板</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 弹窗：分类管理 ============ -->
+<div class="modal-mask" id="modalCat">
+  <div class="modal">
+    <div class="modal-head"><h3>分类管理</h3><button class="modal-close" data-close="modalCat">✕</button></div>
+    <div class="seg" id="mcSegType" style="margin-bottom:10px">
+      <button data-v="expense" class="on">支出分类</button>
+      <button data-v="income">收入分类</button>
+    </div>
+    <div id="mcList"></div>
+    <div class="field-row" style="margin-top:10px">
+      <div class="field-col"><input type="text" id="mcNewName" maxlength="8" placeholder="新分类名称"></div>
+      <button class="btn-mini" id="mcAdd" style="flex:0 0 auto;min-height:44px">＋ 添加</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 弹窗：标签管理 ============ -->
+<div class="modal-mask" id="modalTag">
+  <div class="modal">
+    <div class="modal-head"><h3>标签管理</h3><button class="modal-close" data-close="modalTag">✕</button></div>
+    <div id="tagList"></div>
+    <div class="field-row" style="margin-top:10px">
+      <div class="field-col"><input type="text" id="tagNewName" maxlength="15" placeholder="新标签名称"></div>
+      <button class="btn-mini" id="tagAdd" style="flex:0 0 auto;min-height:44px">＋ 添加</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 弹窗：语音记账 ============ -->
+<div class="modal-mask" id="modalVoice">
+  <div class="modal">
+    <div class="modal-head"><h3>语音记账</h3><button class="modal-close" data-close="modalVoice">✕</button></div>
+    <div style="text-align:center;font-size:13px;color:var(--muted)" id="voiceHint">点击下方按钮开始说话，例如「午餐花了20元」「收到红包100元」</div>
+    <div class="mic-pulse" id="micPulse">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></svg>
+    </div>
+    <div style="text-align:center"><button class="btn-primary form-footer" style="width:auto;padding:0 32px" id="btnMicStart">开始识别</button></div>
+    <div class="voice-result" id="voiceResult">识别结果将显示在这里，可编辑金额与分类后提交</div>
+    <div class="seg" id="vrSegType" style="margin:10px 0">
+      <button data-v="expense" class="on">支出</button>
+      <button data-v="income">收入</button>
+    </div>
+    <div class="field-row">
+      <div class="field-col"><label class="field-label">金额 ¥</label><input type="number" id="vrAmount" inputmode="decimal" min="0" placeholder="0.00"></div>
+      <div class="field-col"><label class="field-label">分类</label><select id="vrCat"></select></div>
+    </div>
+    <button class="submit-btn" id="vrSubmit">确认记账</button>
+  </div>
+</div>
+
+<!-- ============ 弹窗：备份列表 ============ -->
+<div class="modal-mask" id="modalBackup">
+  <div class="modal">
+    <div class="modal-head"><h3>自动备份（保留 7 天）</h3><button class="modal-close" data-close="modalBackup">✕</button></div>
+    <div id="backupList"></div>
+  </div>
+</div>
+
+<!-- ============ 弹窗：通用确认 ============ -->
+<div class="modal-mask" id="modalConfirm">
+  <div class="modal" style="border-radius:22px;padding-bottom:18px">
+    <div class="modal-head"><h3 id="cfTitle">确认</h3></div>
+    <div style="font-size:14px;color:var(--muted);line-height:1.7;padding:0 2px" id="cfMsg"></div>
+    <div class="form-footer">
+      <button class="btn-ghost" id="cfCancel">取消</button>
+      <button class="btn-danger" id="cfOk">确认</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 弹窗：待办完成联动记账 ============ -->
+<div class="modal-mask" id="modalTodoLink">
+  <div class="modal" style="border-radius:22px;padding-bottom:18px">
+    <div class="modal-head"><h3>生成记账？</h3></div>
+    <div style="font-size:14px;color:var(--muted);line-height:1.7" id="tlMsg"></div>
+    <div class="form-footer">
+      <button class="btn-ghost" id="tlNo">仅标记完成</button>
+      <button class="btn-green" id="tlYes">完成并记账</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="importFile" accept=".json,application/json" style="display:none">
+<div id="toast"></div>
+
+<script>
+'use strict';
+/* ============================================================
+ * 仵星的记账本 v1.0
+ * 架构：数据层(Store) → 核算层(Calc) → 渲染层(Render) → 交互层
+ * 全部数据经统一数据层读写 localStorage，禁止散落直取
+ * ============================================================ */
+
+/* ---------- 基础工具 ---------- */
+const $  = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const pad2 = n => String(n).padStart(2, '0');
+const ymd = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const todayStr = () => ymd(new Date());
+/* 字符串日期 → 当日本地 Date（避免 UTC 解析偏移） */
+const parseD = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+const dayDiff = (a, b) => Math.round((parseD(b) - parseD(a)) / 86400000);
+const addDays = (s, n) => { const d = parseD(s); d.setDate(d.getDate() + n); return ymd(d); };
+const addMonths = (s, n) => { const d = parseD(s); const day = d.getDate(); d.setDate(1); d.setMonth(d.getMonth() + n); const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate(); d.setDate(Math.min(day, last)); return ymd(d); };
+const money = n => (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('zh-CN', { maximumFractionDigits: 2 });
+/* 安全数值转换：非有效数字一律返回 0，彻底杜绝字符串参与运算 */
+const num = v => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
+/* 安全求和：list 可为 null/undefined；初始值 0；每项强制 Number 转换（防字符串拼接） */
+const sumAmount = list => (list || []).reduce((a, x) => a + (x && x.amount != null ? num(x.amount) : num(x)), 0);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const deep = o => JSON.parse(JSON.stringify(o));
+/* 应用名称：优先取用户在 system_settings 中自定义的值，空白时回退默认名 */
+const getAppName = () => {
+  const v = Store.data && Store.data.system_settings && Store.data.system_settings.appName;
+  return (v && String(v).trim()) ? String(v).trim() : '仵星的记账本';
+};
+/* 将当前应用名称写入页面标题、首页页头与「关于」页；空白回退默认名 */
+function applyAppName() {
+  const name = getAppName();
+  document.title = name;
+  const h = $('#appNameHeader'); if (h) h.textContent = name;
+  const a = $('#appNameAbout'); if (a) a.textContent = name;
+}
+
+/* ---------- 分类图标：emoji 更生动，手机辨识度高 ---------- */
+const CAT_EMOJIS = {
+  '饮食':'🍜', '交通':'🚗', '购物':'🛒', '住房':'🏠', '娱乐':'🎮',
+  '医疗':'💊', '教育':'📚', '其他':'📦',
+  '工资':'💰', '报销':'📋', '红包':'🧧',
+  '固定支出':'🔒', '收入其他':'💵'
+};
+const catIcon = name => `<span class="cat-emoji">${CAT_EMOJIS[name] || '📦'}</span>`;
+/* 图表配色序列：8-10 高对比度交替冷暖色，手机屏幕易区分 */
+const PALETTE = ['#E53935','#FB8C00','#FDD835','#43A047','#1E88E5','#8E24AA','#00ACC1','#D81B60','#6D4C41','#546E7A'];
+const catColor = name => PALETTE[(String(name).charCodeAt(0) + String(name).length) % PALETTE.length];
+
+/* ============================================================
+ * 数据层 Store：localStorage 分模块统一读写 + 容错
+ * ============================================================ */
+const DEFAULT_CATS = { expense: ['饮食','交通','购物','住房','娱乐','医疗','教育','其他'], income: ['工资','报销','红包','其他'] };
+const Store = {
+  keys: ['account_records','period_groups','todo_items','quick_templates','category_config','tag_list','system_settings','backup_snapshots'],
+  data: null,
+  init() {
+    this.data = {};
+    for (const k of this.keys) {
+      let val = null;
+      try { val = JSON.parse(localStorage.getItem(k)); } catch (e) { val = null; } // 损坏数据兜底为空
+      this.data[k] = val;
+    }
+    /* 数据损坏自动恢复最近备份，禁止白屏 */
+    const broken = this.keys.some(k => this.data[k] === null && localStorage.getItem(k) !== null);
+    const bks = this.data.backup_snapshots;
+    if (broken && Array.isArray(bks) && bks.length) {
+      try { this.restoreData(bks[bks.length - 1].data); toast('检测到数据异常，已自动恢复最近备份'); } catch (e) {}
+    }
+    /* 结构兜底：保证每个 key 有合法默认值 */
+    const defs = { account_records: [], period_groups: [], todo_items: [], quick_templates: [], category_config: deep(DEFAULT_CATS), tag_list: [], system_settings: {}, backup_snapshots: [] };
+    for (const k of this.keys) {
+      if (this.data[k] === null || this.data[k] === undefined) { this.data[k] = defs[k]; this.save(k); }
+    }
+    if (!this.data.category_config.expense || !this.data.category_config.expense.length) this.data.category_config = deep(DEFAULT_CATS);
+    /* 存量数据迁移：将历史字符串类型的固定支出 amount/payDay 批量转为数字，无损兼容旧数据 */
+    this.migrateFixedAmounts();
+  },
+  /* 固定支出金额类型迁移：字符串 → Number（只做类型转换，不改变数据结构与业务含义） */
+  migrateFixedAmounts() {
+    let changed = false;
+    (this.data.period_groups || []).forEach(g => {
+      (g.fixedExpenses || []).forEach(f => {
+        if (typeof f.amount !== 'number' || !Number.isFinite(f.amount)) {
+          f.amount = num(f.amount);
+          changed = true;
+        }
+        if (typeof f.payDay !== 'number' || !Number.isFinite(f.payDay)) {
+          const pd = num(String(f.payDay == null ? 1 : f.payDay).replace(/[^\d]/g, '')) || 1;
+          f.payDay = Math.min(31, Math.max(1, pd));
+          changed = true;
+        }
+      });
+    });
+    if (changed) this.save('period_groups');
+  },
+  save(key) { try { localStorage.setItem(key, JSON.stringify(this.data[key])); } catch (e) { toast('本地存储写入失败', true); } },
+  saveAll() { this.keys.forEach(k => this.save(k)); },
+  /* 导出全部数据快照 */
+  snapshot() { const o = {}; this.keys.forEach(k => o[k] = deep(this.data[k])); return o; },
+  restoreData(snap) {
+    if (!snap || typeof snap !== 'object') throw new Error('格式错误');
+    for (const k of this.keys) if (!(k in snap)) throw new Error('备份缺少字段: ' + k);
+    if (!Array.isArray(snap.account_records) || !Array.isArray(snap.period_groups)) throw new Error('核心数据格式错误');
+    for (const k of this.keys) { this.data[k] = deep(snap[k]); this.save(k); }
+  },
+  /* ---------- 记录 CRUD ---------- */
+  get records() { return this.data.account_records; },
+  addRecord(r) { this.data.account_records.unshift(r); this.save('account_records'); },
+  updateRecord(r) { r.updatedAt = Date.now(); const i = this.data.account_records.findIndex(x => x.id === r.id); if (i > -1) this.data.account_records[i] = r; this.save('account_records'); },
+  removeRecord(id) { this.data.account_records = this.data.account_records.filter(x => x.id !== id); this.save('account_records'); },
+  /* ---------- 分组 CRUD ---------- */
+  get groups() { return this.data.period_groups; },
+  saveGroup(g) { const i = this.data.period_groups.findIndex(x => x.id === g.id); if (i > -1) this.data.period_groups[i] = g; else this.data.period_groups.push(g); this.save('period_groups'); },
+  removeGroup(id) { this.data.period_groups = this.data.period_groups.filter(x => x.id !== id); this.save('period_groups'); },
+  /* ---------- 待办 CRUD ---------- */
+  get todos() { return this.data.todo_items; },
+  saveTodo(t) { const i = this.data.todo_items.findIndex(x => x.id === t.id); if (i > -1) this.data.todo_items[i] = t; else this.data.todo_items.push(t); this.save('todo_items'); },
+  removeTodo(id) { this.data.todo_items = this.data.todo_items.filter(x => x.id !== id); this.save('todo_items'); }
+};
+
+/* ============================================================
+ * 核算层 Calc：所有统计口径的唯一出处，避免重复计算口径漂移
+ * ============================================================ */
+const Calc = {
+  /* 日期所属的分组 id 列表（自动归属规则） */
+  groupIdsForDate(date) {
+    return Store.groups.filter(g => g.startDate <= date && date <= g.endDate).map(g => g.id);
+  },
+  getGroup(id) { return Store.groups.find(g => g.id === id); },
+  /* 范围内记录（闭区间；excludeLarge 时剔除大额消费） */
+  recordsInRange(start, end, opt = {}) {
+    return Store.records.filter(r => {
+      if (r.date < start || r.date > end) return false;
+      if (opt.excludeLarge && r.mode === 'large') return false;
+      if (opt.groupId && !r.groupIds.includes(opt.groupId)) return false;
+      return true;
+    });
+  },
+  /* 汇总：总支出/收入/日常/大额/结余/分类聚合/逐日聚合 */
+  summarize(recs, fixedTotalOverride) {
+    const s = { expense: 0, income: 0, dailyExp: 0, largeExp: 0, fixedExp: 0, net: 0, byCat: {}, byCatIncome: {}, byDay: {}, count: recs.length };
+    for (const r of recs) {
+      // 修复：传入 fixedTotalOverride 时，跳过脏的固定支出记录（避免天文数字）
+      if (r.isFixed && fixedTotalOverride != null) continue;
+      if (r.type === 'expense') {
+        s.expense += r.amount;
+        if (r.isFixed) s.fixedExp += r.amount;
+        else if (r.mode === 'large') s.largeExp += r.amount;
+        else s.dailyExp += r.amount;
+        s.byCat[r.category] = (s.byCat[r.category] || 0) + r.amount;
+      } else {
+        s.income += r.amount;
+        s.byCatIncome[r.category] = (s.byCatIncome[r.category] || 0) + r.amount;
+      }
+      const day = s.byDay[r.date] || (s.byDay[r.date] = { exp: 0, inc: 0 });
+      if (r.type === 'expense') day.exp += r.amount; else day.inc += r.amount;
+    }
+    for (const k of Object.keys(s.byDay)) s.byDay[k].net = s.byDay[k].inc - s.byDay[k].exp;
+    // 修复：覆盖 fixedExp 与总额计算（用配置的固定支出替代）
+    if (fixedTotalOverride != null) {
+      s.fixedExp = fixedTotalOverride;
+      s.expense = s.dailyExp + s.largeExp + fixedTotalOverride;
+      s.byCat['固定支出'] = fixedTotalOverride;
+      s.net = s.income - s.expense;
+    } else {
+      s.net = s.income - s.expense;
+    }
+    return s;
+  },
+  /* 日均消费·口径A：总消费(日常+大额) ÷ 已过去自然天数（不含固定支出干扰口径，消费=非固定支出） */
+  dailyAvg(sum, start, end) {
+    const today = todayStr();
+    const elapsed = Math.max(1, Math.min(dayDiff(start, today) + 1, dayDiff(start, end) + 1));
+    return { avg: (sum.expense - sum.fixedExp) / elapsed, elapsed, totalDays: dayDiff(start, end) + 1 };
+  },
+  /* 分组预算状态：先扣可用预算 → 超出扣储蓄（固定支出前置扣除不参与） */
+  budgetState(group) {
+    const recs = Store.records.filter(r => r.groupIds.includes(group.id));
+    // 用配置的固定支出总额避开脏数据
+    const fixedCfg = (group.fixedExpenses || []).reduce((a, f) => a + (Number(f.amount) || 0), 0);
+    const sum = this.summarize(recs, fixedCfg);
+    const flexible = sum.dailyExp + sum.largeExp;                 // 参与预算扣减的消费（仅非固定支出）
+    const pool = group.availableBudget + sum.income;               // 可用预算池 = 配置额度 + 周期内收入记录
+    const budgetUsed = Math.min(flexible, pool);
+    const budgetLeft = pool - budgetUsed;
+    const savingsUsed = Math.max(0, flexible - pool);              // 超支部分啃储蓄
+    const savingsLeft = Math.max(0, group.savingsTarget - savingsUsed);
+    const ratio = pool > 0 ? budgetLeft / pool : 1;
+    const level = savingsUsed > 0 ? 'danger' : (pool > 0 && ratio < 0.2 ? 'warn' : 'ok');
+    /* 分类预算超支检测 */
+    const catOver = [];
+    (group.categoryBudgets || []).forEach(cb => {
+      const used = sum.byCat[cb.category] || 0;
+      if (used > cb.amount) catOver.push({ ...cb, used });
+    });
+    const disposable = group.salary - fixedCfg - group.savingsTarget; // 周期可支配参考（基于配置的固定支出）
+    return { sum, flexible, pool, budgetUsed, budgetLeft, savingsUsed, savingsLeft, ratio, level, catOver, disposable };
+  }
+};
+
+/* ============================================================
+ * 固定支出：按配置生成记录（仅生成扣款日 >= 今天的记录，不回溯补生成历史账单）
+ *           配置变更强同步：改金额→同步更新；改名/扣款日→清旧建新；删配置→清除对应记录
+ * ============================================================ */
+function ensureFixedRecords() {
+  const today = todayStr();
+  let changed = false;
+  for (const g of Store.groups) {
+    const fxList = g.fixedExpenses || [];
+    /* 1) 重建当前各项配置的全周期扣款日序列：name -> { fx, seq }
+          含历史日期（用于对账、保留老记录），但新增时只取 >= 今天 */
+    const cfgMap = {};
+    for (const fx of fxList) {
+      const seq = new Set();
+      let cursor = g.startDate.slice(0, 8) + pad2(Math.min(fx.payDay, 28));
+      if (cursor < g.startDate) cursor = addMonths(cursor, 1);
+      while (cursor <= g.endDate) { seq.add(cursor); cursor = addMonths(cursor, 1); }
+      cfgMap[fx.name] = { fx, seq };
+    }
+    /* 2) 对账：金额同步 + 清除废弃记录（匹配规则不变：分组ID + 名称 + 日期） */
+    for (let i = Store.records.length - 1; i >= 0; i--) {
+      const r = Store.records[i];
+      if (!r.isFixed || !r.groupIds || !r.groupIds.includes(g.id)) continue;
+      const cfg = cfgMap[r.note];
+      if (cfg && cfg.seq.has(r.date)) {
+        /* 配置仍在且日期合法 → 同步金额，保证明细金额与配置一致 */
+        const amt = Number(cfg.fx.amount) || 0;
+        if (Number(r.amount) !== amt) { r.amount = amt; r.updatedAt = Date.now(); changed = true; }
+      } else {
+        /* 配置已删除 / 改名 / 改扣款日 / 日期超出周期 → 清除该条废弃记录，不留冗余 */
+        Store.records.splice(i, 1);
+        changed = true;
+      }
+    }
+    /* 3) 新增：仅生成扣款日 >= 今天的记录，不回溯补生成历史账单 */
+    for (const fx of fxList) {
+      for (const d of cfgMap[fx.name].seq) {
+        if (d < today) continue;
+        const rid = `fixed_${g.id}_${fx.name}_${d}`;
+        /* 幂等：同一分组 + 同一名称 + 同一日期，无论 id 格式是否一致都只生成一条 */
+        const exists = Store.records.some(r => r.id === rid || (r.isFixed && r.groupIds && r.groupIds.includes(g.id) && r.note === fx.name && r.date === d));
+        if (!exists) {
+          Store.records.push({
+            id: rid, type: 'expense', mode: 'daily', amount: Number(fx.amount) || 0, category: '固定支出',
+            tags: [], date: d, note: fx.name, groupIds: [g.id], isFixed: true,
+            createdAt: Date.now(), updatedAt: Date.now()
+          });
+          changed = true;
+        }
+      }
+    }
+  }
+  /* 4) 孤儿清理：清除所属分组已被删除、但仍残留的自动固定支出记录
+        （分组删除后这些记录失去管理入口，会永久虚增总支出）
+        安全边界：仅清 isFixed 记录；普通手动记账记录一律不删
+        多归属记录只要还有一个 id 属于现存分组就保留 */
+  const liveGids = new Set(Store.groups.map(g => g.id));
+  for (let i = Store.records.length - 1; i >= 0; i--) {
+    const r = Store.records[i];
+    if (!r.isFixed) continue;
+    if (!(r.groupIds || []).some(id => liveGids.has(id))) {
+      Store.records.splice(i, 1);                                   /* 倒序 splice：Store.records 是 getter 无 setter */
+      changed = true;
+    }
+  }
+  if (changed) { Store.records.sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt); Store.save('account_records'); }
+}
+
+/* ============================================================
+ * 自动备份：每日首次打开生成快照，保留最近 7 天
+ * ============================================================ */
+function autoBackup() {
+  const today = todayStr();
+  const bks = Store.data.backup_snapshots;
+  if (bks.length && bks[bks.length - 1].date === today) return;
+  bks.push({ date: today, ts: Date.now(), count: Store.records.length, data: Store.snapshot() });
+  while (bks.length > 7) bks.shift();
+  Store.save('backup_snapshots');
+}
+
+/* ============================================================
+ * SVG 图表引擎（手写实现，完全离线可用）
+ * ============================================================ */
+/* 圆环饼图：items=[{label,value}] */
+function svgPie(items, size = 190) {
+  const total = items.reduce((a, b) => a + b.value, 0);
+  if (!total) return `<div class="empty-tip">暂无数据</div>`;
+  const r = 62, cx = size / 2, cy = size / 2, sw = 26;
+  let angle = -Math.PI / 2, paths = '';
+  items.forEach(it => {
+    const frac = it.value / total;
+    const a2 = angle + frac * Math.PI * 2;
+    const large = frac > 0.5 ? 1 : 0;
+    const x1 = cx + r * Math.cos(angle), y1 = cy + r * Math.sin(angle);
+    const x2 = cx + r * Math.cos(a2 - 0.0001), y2 = cy + r * Math.sin(a2 - 0.0001);
+    paths += `<path d="M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2}" fill="none" stroke="${it.color}" stroke-width="${sw}" data-cat="${esc(it.label)}" style="cursor:pointer"/>`;
+    angle = a2;
+  });
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" class="pie-svg">
+    ${paths}
+    <text x="${cx}" y="${cy - 6}" text-anchor="middle" font-size="11" fill="var(--muted)">总支出</text>
+    <text x="${cx}" y="${cy + 14}" text-anchor="middle" font-size="17" font-weight="700" fill="var(--text)">¥${money(total)}</text>
+  </svg>`;
+}
+/* 柱状图：days=[{label,exp,inc}] */
+function svgBars(days, w = 340, h = 170) {
+  const pad = { l: 6, r: 6, t: 14, b: 20 };
+  const max = Math.max(1, ...days.map(d => Math.max(d.exp, d.inc)));
+  const iw = (w - pad.l - pad.r) / days.length;
+  const barW = Math.max(3, Math.min(14, iw * 0.55));
+  const y = v => pad.t + (1 - v / max) * (h - pad.t - pad.b);
+  let s = `<svg width="100%" viewBox="0 0 ${w} ${h}">`;
+  /* 参考线 */
+  [0.5, 1].forEach(f => { s += `<line x1="${pad.l}" y1="${y(max * f)}" x2="${w - pad.r}" y2="${y(max * f)}" stroke="var(--line)" stroke-dasharray="3 3" stroke-width="1"/>`; });
+  days.forEach((d, i) => {
+    const cx = pad.l + iw * i + iw / 2;
+    if (d.exp > 0) s += `<rect x="${cx - barW - 1}" y="${y(d.exp)}" width="${barW}" height="${h - pad.b - y(d.exp)}" rx="2" fill="var(--red)" opacity=".85"><title>${d.label} 支出 ¥${money(d.exp)}</title></rect>`;
+    if (d.inc > 0) s += `<rect x="${cx + 1}" y="${y(d.inc)}" width="${barW}" height="${h - pad.b - y(d.inc)}" rx="2" fill="var(--green)" opacity=".85"><title>${d.label} 收入 ¥${money(d.inc)}</title></rect>`;
+    if (d.label) s += `<text x="${cx}" y="${h - 6}" text-anchor="middle" font-size="8.5" fill="var(--muted)">${esc(d.label)}</text>`;
+  });
+  s += `</svg>`;
+  return s;
+}
+/* 预算进度环（首页 hero） */
+function svgRing(ratio, label, sub) {
+  const R = 34, C = 2 * Math.PI * R, size = 86;
+  const val = Math.max(0, Math.min(1, ratio));
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+    <circle cx="43" cy="43" r="${R}" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="7"/>
+    <circle cx="43" cy="43" r="${R}" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round"
+      stroke-dasharray="${(C * val).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 43 43)"/>
+  </svg>
+  <div class="ring-text"><b>${label}</b><span style="opacity:.85;font-size:10px">${sub}</span></div>`;
+}
+
+/* ---------- toast / 确认弹窗 ---------- */
+let toastTimer = null;
+function toast(msg, isErr) {
+  const t = $('#toast'); t.textContent = msg; t.className = isErr ? 'err show' : 'show';
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+function confirmBox(title, msg, onOk) {
+  $('#cfTitle').textContent = title; $('#cfMsg').textContent = msg;
+  $('#modalConfirm').classList.add('show');
+  const ok = $('#cfOk'), cancel = $('#cfCancel');
+  const clean = () => { ok.onclick = null; cancel.onclick = null; $('#modalConfirm').classList.remove('show'); };
+  ok.onclick = () => { clean(); onOk && onOk(); };
+  cancel.onclick = clean;
+}
+
+/* ---------- 示例数据种子（仅首次注入，幂等） ---------- */
+function seedDemoData() {
+  const st = Store.data.system_settings;
+  if (st.seeded) return;
+  const t = todayStr();
+  const mk = o => ({ id: uid(), tags: [], note: '', groupIds: [], isFixed: false, demo: true, createdAt: Date.now(), updatedAt: Date.now(), ...o });
+  const group = {
+    id: uid(), demo: true, name: '本月发薪周期', startDate: addDays(t, -6), endDate: addDays(t, 24),
+    salary: 5000, fixedExpenses: [{ name: '房租', amount: 2000, payDay: 16 }],
+    availableBudget: 1800, savingsTarget: 700, categoryBudgets: [{ category: '饮食', amount: 800 }], createdAt: Date.now()
+  };
+  /* 先建分组，再计算示例记录的自动归属，保证归属关系正确 */
+  Store.data.period_groups.push(group);
+  const gid = Calc.groupIdsForDate(t);
+  Store.records.push(
+    mk({ type: 'expense', mode: 'daily', amount: 18.5, category: '饮食', tags: ['工作日午餐'], date: t, note: '公司楼下快餐', groupIds: [...gid] }),
+    mk({ type: 'expense', mode: 'daily', amount: 6, category: '交通', tags: [], date: t, note: '地铁通勤', groupIds: [...gid] }),
+    mk({ type: 'expense', mode: 'daily', amount: 32, category: '饮食', tags: ['聚餐'], date: addDays(t, -1), note: '和同事聚餐', groupIds: [...gid] }),
+    mk({ type: 'expense', mode: 'large', amount: 399, category: '购物', tags: ['囤货'], date: t, note: '双11囤日用品', groupIds: [...gid] }),
+    mk({ type: 'income', mode: 'daily', amount: 58, category: '红包', tags: [], date: addDays(t, -1), note: '外卖红包返现', groupIds: [...gid] })
+  );
+  Store.todos.push(
+    { id: uid(), demo: true, title: '给房东转账（示例·已逾期）', remindDate: addDays(t, -1), relatedAmount: 2000, isCompleted: false, linkRecord: true, createdAt: Date.now() },
+    { id: uid(), demo: true, title: '买高铁票回学校', remindDate: t, relatedAmount: null, isCompleted: false, linkRecord: false, createdAt: Date.now() }
+  );
+  Store.data.tag_list.push('工作日午餐', '聚餐', '囤货');
+  Store.data.quick_templates.push(
+    { id: uid(), demo: true, name: '公司午餐', type: 'expense', category: '饮食', amount: 18, tag: '工作日午餐' },
+    { id: uid(), demo: true, name: '地铁通勤', type: 'expense', category: '交通', amount: 6, tag: '' },
+    { id: uid(), demo: true, name: '发工资', type: 'income', category: '工资', amount: 5000, tag: '' }
+  );
+  st.seeded = true; st.demoSeeded = true; st.defaultDim = 'month'; st.theme = 'light';
+  Store.saveAll();
+}
+/* 清空示例数据：按 demo 标记精确清除（记账/待办/分组/模板一并提供） */
+function clearDemoData() {
+  const demoGids = Store.groups.filter(g => g.demo).map(g => g.id);
+  Store.data.account_records = Store.records.filter(r =>
+    !r.demo && !(r.isFixed && r.groupIds.some(id => demoGids.includes(id))) && !(r.note || '').includes('示例'));
+  Store.data.todo_items = Store.todos.filter(t => !t.demo && !t.title.includes('示例'));
+  Store.data.period_groups = Store.groups.filter(g => !g.demo);
+  Store.data.quick_templates = Store.data.quick_templates.filter(tp => !tp.demo);
+  /* 清理残留的分组归属引用 */
+  Store.records.forEach(r => { r.groupIds = r.groupIds.filter(id => !demoGids.includes(id)); });
+  Store.data.system_settings.demoSeeded = false;
+  Store.saveAll();
+  toast('示例数据已全部清空');
+  renderAll();
+}
+
+/* ============================================================
+ * 渲染层
+ * ============================================================ */
+/* 快速记账表单状态 */
+const quick = { mode: 'daily', type: 'expense', category: '饮食', tags: [] };
+/* 统计页状态 */
+const statsState = { dim: 'month', cursor: null, groupId: null };
+/* 当前页 */
+let currentPage = 'home';
+
+function switchPage(name) {
+  currentPage = name;
+  $$('.page').forEach(p => p.classList.remove('active'));
+  $('#page-' + name).classList.add('active');
+  $$('#tabbar button').forEach(b => b.classList.toggle('on', b.dataset.page === name));
+  window.scrollTo(0, 0);
+  if (name === 'stats') renderStats();
+  if (name === 'groups') renderGroups();
+  if (name === 'todos') renderTodos();
+  if (name === 'settings') renderSettingsDesc();
+}
+
+/* ---------- 通用记录行 ---------- */
+function recItemHtml(r) {
+  const cls = r.type === 'expense' ? 'exp' : 'inc';
+  const amountHtml = r.type === 'expense'
+    ? `<span class="rec-amount ${cls}">-¥${money(r.amount)}</span>`
+    : `<span class="rec-amount ${cls}"><span class="plus">+</span>¥${money(r.amount)}</span>`;
+  const tagsHtml = (r.tags || []).map(t => `<span class="tag-mini">${esc(t)}</span>`).join('');
+  return `<li class="rec-item" data-id="${r.id}">
+    <div class="rec-icon">${catIcon(r.category)}</div>
+    <div class="rec-body">
+      <div class="rec-title">${esc(r.category)}${r.mode === 'large' ? '<span class="badge-large">大额</span>' : ''}${r.isFixed ? '<span class="badge-fixed">固定</span>' : ''}${tagsHtml}</div>
+      <div class="rec-note">${esc(r.note || r.date)}</div>
+    </div>
+    ${amountHtml}
+  </li>`;
+}
+function bindRecList(sel, records) {
+  const el = $(sel);
+  el.innerHTML = records.length ? records.map(recItemHtml).join('') : '<div class="empty-tip">暂无记录</div>';
+  /* 点击编辑 + 长按复制 */
+  el.querySelectorAll('.rec-item').forEach(item => {
+    let pressTimer = null, moved = false;
+    const id = item.dataset.id;
+    item.addEventListener('touchstart', () => {
+      moved = false;
+      pressTimer = setTimeout(() => { moved = true; copyRecord(id); }, 600);
+    }, { passive: true });
+    item.addEventListener('touchmove', () => { moved = true; clearTimeout(pressTimer); }, { passive: true });
+    item.addEventListener('touchend', () => clearTimeout(pressTimer));
+    item.addEventListener('click', () => { if (!moved) openRecordModal(id); });
+  });
+}
+/* 复制记账：长按记录一键复制新记录 */
+function copyRecord(id) {
+  const r = Store.records.find(x => x.id === id); if (!r) return;
+  const nr = deep(r); nr.id = uid(); nr.createdAt = Date.now(); nr.updatedAt = Date.now(); nr.date = todayStr();
+  /* 复制后按当前日期重新自动归属分组 */
+  nr.groupIds = Calc.groupIdsForDate(nr.date);
+  Store.addRecord(nr);
+  toast('已复制生成新记录（今日）');
+  renderAll();
+}
+
+/* ---------- 首页 ---------- */
+function renderHome() {
+  const today = todayStr();
+  /* 1. 今日要处理（逾期红 + 今日待办） */
+  const pending = Store.todos.filter(t => !t.isCompleted && t.remindDate <= today)
+    .sort((a, b) => a.remindDate.localeCompare(b.remindDate));
+  $('#homeTodoList').innerHTML = pending.length ? pending.map(t => {
+    const overdue = t.remindDate < today;
+    return `<li class="todo-item ${overdue ? 'overdue' : ''}" data-id="${t.id}">
+      <button class="todo-check" data-act="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"><path d="M5 13l4 4 10-10"/></svg></button>
+      <div class="todo-body">
+        <div class="todo-title">${esc(t.title)}</div>
+        <div class="todo-meta">${overdue ? `<span class="od-badge">逾期 ${dayDiff(t.remindDate, today)} 天</span>` : '今天'}${t.relatedAmount ? ` · ¥${money(t.relatedAmount)}` : ''}</div>
+      </div>
+      <div class="todo-actions"><button data-act="edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg></button></div>
+    </li>`;
+  }).join('') : '<div class="empty-tip">今天没有待办，很轻松 ✧</div>';
+
+  /* 2. hero 核心数据 */
+  const excludeLarge = $('#excludeLargeHome').checked;
+  const todayRecs = Store.records.filter(r => r.date === today);
+  const todaySpend = todayRecs.filter(r => r.type === 'expense' && (!excludeLarge || r.mode !== 'large') && !r.isFixed)
+    .reduce((a, r) => a + r.amount, 0);
+  $('#homeTodaySpend').textContent = money(todaySpend);
+
+  /* 当前分组（可能重叠多个，预算取第一个） */
+  const curGroups = Store.groups.filter(g => g.startDate <= today && today <= g.endDate);
+  const heroCard = $('#heroCard');
+  if (curGroups.length) {
+    const bs = Calc.budgetState(curGroups[0]);
+    $('#homeBudgetLeft').textContent = '¥' + money(bs.budgetLeft);
+    $('#homeSavingsLeft').textContent = '¥' + money(bs.savingsLeft);
+    $('#homeBudgetRing').innerHTML = svgRing(bs.pool > 0 ? Math.max(0, bs.budgetLeft / bs.pool) : 0, Math.round(bs.ratio * 100) + '%', '预算剩余');
+    heroCard.className = 'hero-card ' + (bs.level === 'ok' ? '' : bs.level);
+    $('#hsBudget').style.display = ''; $('#hsSavings').style.display = '';
+  } else {
+    $('#homeBudgetLeft').textContent = '--'; $('#homeSavingsLeft').textContent = '--';
+    $('#homeBudgetRing').innerHTML = svgRing(0, '自然月', '无分组');
+    heroCard.className = 'hero-card';
+  }
+  // 优化-固定支出：首页拆分日常/固定支出展示
+  const mStart = today.slice(0, 8) + '01';
+  // 修复：首页读取所有分组的 fixedExpenses 总额，用于覆盖天文数字
+  const mFixedCfg = Store.groups.reduce((a, g) => a + (g.fixedExpenses || []).reduce((x, f) => x + (Number(f.amount) || 0), 0), 0);
+  const mSum = Calc.summarize(Calc.recordsInRange(mStart, today), mFixedCfg);
+  $('#homeDailySpend').textContent = '¥' + money(mSum.dailyExp);
+  $('#homeFixedSpend').textContent = '¥' + money(mSum.fixedExp);
+
+  /* 3. 快速记账表单 */
+  renderQuickForm();
+  $('#quickGroupHint').textContent = curGroups.length
+    ? '自动归属: ' + curGroups.map(g => g.name).join(' / ')
+    : '当前不在任何分组，仅计入自然月';
+
+  /* 4. 时段面板（所有包含今天的分组） */
+  const pp = $('#homePeriodPanel');
+  if (curGroups.length) {
+    pp.style.display = '';
+    pp.innerHTML = curGroups.map(g => {
+      const bs = Calc.budgetState(g);
+      const avg = Calc.dailyAvg(bs.sum, g.startDate, g.endDate);
+      return `<div style="margin-bottom:${curGroups.length > 1 ? '10px' : '0'}">
+        <div class="pp-head" data-open-group="${g.id}" style="cursor:pointer">
+          <div><div class="pp-name">${esc(g.name)}</div><div class="pp-range">${g.startDate} ~ ${g.endDate} · 点击查看详情 ›</div></div>
+        </div>
+        <div class="pp-grid">
+          <div class="pp-cell"><div class="k">时段支出</div><div class="v">¥${money(bs.sum.dailyExp + bs.sum.largeExp + ((g.fixedExpenses || []).reduce((a,f)=>a+(Number(f.amount)||0),0)))}</div></div>
+          <div class="pp-cell"><div class="k">大额消费</div><div class="v">¥${money(bs.sum.largeExp)}</div></div>
+          <div class="pp-cell"><div class="k">日均消费</div><div class="v">¥${money(bs.flexible / avg.elapsed)}</div></div>
+          <div class="pp-cell"><div class="k">预算剩余</div><div class="v" style="color:${bs.level === 'danger' ? 'var(--red)' : bs.level === 'warn' ? 'var(--orange)' : 'var(--green)'}">¥${money(bs.budgetLeft)}</div></div>
+        </div>
+      </div>`;
+    }).join('');
+  } else pp.style.display = 'none';
+
+  /* 5. 今日明细（日常 + 大额均展示，大额带标记） */
+  const todayList = Store.records.filter(r => r.date === today && !r.isFixed);
+  bindRecList('#homeTodayList', todayList);
+
+  /* 首页待办事件 */
+  $('#homeTodoList').querySelectorAll('.todo-item').forEach(item => {
+    item.querySelector('[data-act="check"]').onclick = e => { e.stopPropagation(); completeTodoFlow(item.dataset.id); };
+    item.querySelector('[data-act="edit"]').onclick = e => { e.stopPropagation(); openTodoModal(item.dataset.id); };
+  });
+  pp.querySelectorAll('[data-open-group]').forEach(el => el.onclick = () => openGroupDetail(el.dataset.openGroup));
+}
+
+/* 快速记账表单渲染 */
+function renderQuickForm() {
+  const cats = Store.data.category_config[quick.type];
+  if (!cats.includes(quick.category)) quick.category = cats[0];
+  $('#quickCatGrid').innerHTML = cats.map(c =>
+    `<button class="cat-cell ${c === quick.category ? 'on' : ''}" data-cat="${esc(c)}">${catIcon(c)}<span>${esc(c)}</span></button>`).join('');
+  $('#quickCatGrid').querySelectorAll('.cat-cell').forEach(b => b.onclick = () => { quick.category = b.dataset.cat; renderQuickForm(); });
+  /* 标签 chips */
+  $('#quickTags').innerHTML = Store.data.tag_list.map(t =>
+    `<button class="chip ${quick.tags.includes(t) ? 'on' : ''}" data-tag="${esc(t)}">${esc(t)}</button>`).join('')
+    || '<span style="font-size:12px;color:var(--muted)">暂无标签，可在设置中添加</span>';
+  $('#quickTags').querySelectorAll('.chip').forEach(b => b.onclick = () => {
+    const t = b.dataset.tag;
+    quick.tags = quick.tags.includes(t) ? quick.tags.filter(x => x !== t) : [...quick.tags, t];
+    renderQuickForm();
+  });
+  /* 模板 */
+  $('#tplScroll').innerHTML = Store.data.quick_templates.map(tp =>
+    `<button class="tpl-pill" data-id="${tp.id}"><b>¥${money(tp.amount)}</b><span>${esc(tp.name)}</span></button>`).join('');
+  $('#tplScroll').querySelectorAll('.tpl-pill').forEach(b => b.onclick = () => applyTemplate(b.dataset.id));
+}
+/* 模板一键记账 */
+function applyTemplate(id) {
+  const tp = Store.data.quick_templates.find(x => x.id === id); if (!tp) return;
+  Store.addRecord({
+    id: uid(), type: tp.type, mode: 'daily', amount: tp.amount, category: tp.category,
+    tags: tp.tag ? [tp.tag] : [], date: todayStr(), note: '模板: ' + tp.name,
+    groupIds: Calc.groupIdsForDate(todayStr()), isFixed: false, createdAt: Date.now(), updatedAt: Date.now()
+  });
+  toast(`已记账: ${tp.name} ¥${money(tp.amount)}`);
+  renderAll();
+}
+
+/* ============================================================
+ * 统计页（日 / 周 / 月 / 时段 四维度）
+ * ============================================================ */
+function statRange() {
+  const st = statsState;
+  if (!st.cursor) st.cursor = todayStr();
+  if (st.dim === 'day') return [st.cursor, st.cursor];
+  if (st.dim === 'week') {
+    const d = parseD(st.cursor), wd = (d.getDay() + 6) % 7; // 周一为一周起点
+    const start = addDays(st.cursor, -wd);
+    return [start, addDays(start, 6)];
+  }
+  if (st.dim === 'month') {
+    const [y, m] = st.cursor.split('-').map(Number);
+    const start = `${y}-${pad2(m)}-01`;
+    return [start, addMonths(start, 1).slice(0, 8) + '01'].map((v, i) => i ? addDays(v, -1) : v);
+  }
+  const g = Calc.getGroup(st.groupId);
+  return g ? [g.startDate, g.endDate] : [todayStr(), todayStr()];
+}
+function statTitle() {
+  const st = statsState;
+  if (st.dim === 'day') return parseD(st.cursor).toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'short' });
+  if (st.dim === 'week') { const [s, e] = statRange(); return `${s.slice(5)} ~ ${e.slice(5)} 当周`; }
+  if (st.dim === 'month') { const [y, m] = st.cursor.split('-').map(Number); return `${y}年${m}月`; }
+  const g = Calc.getGroup(st.groupId);
+  return g ? g.name : '请选择分组';
+}
+function renderStats() {
+  const st = statsState;
+  if (!st.cursor) st.cursor = todayStr();
+  if (st.dim === 'month') st.cursor = st.cursor.slice(0, 7);
+  /* 维度 tab 高亮 */
+  $$('#dimTabs button').forEach(b => b.classList.toggle('on', b.dataset.v === st.dim));
+  $('#statTitle').textContent = statTitle();
+  const excludeLarge = $('#excludeLargeStats').checked;
+
+  /* 时段维度选择器 */
+  if (st.dim === 'group') {
+    if (!st.groupId && Store.groups.length) st.groupId = Store.groups[0].id;
+    if (!Store.groups.length) { $('#statGrid').innerHTML = ''; $('#pieBox').innerHTML = ''; $('#pieLegend').innerHTML = ''; $('#barBox').innerHTML = ''; $('#statRecordList').innerHTML = '<div class="empty-tip">尚未创建时段分组，请到「分组」页新建</div>'; return; }
+    $('#statTitle').innerHTML = `<select id="statGroupSel" style="width:auto;font-size:14px;font-weight:700;min-height:38px">${Store.groups.map(g => `<option value="${g.id}" ${g.id === st.groupId ? 'selected' : ''}>${esc(g.name)}</option>`).join('')}</select>`;
+    $('#statGroupSel').onchange = e => { st.groupId = e.target.value; renderStats(); };
+  }
+  const [start, end] = statRange();
+  let recs = Calc.recordsInRange(start, end);
+  if (st.dim === 'group' && st.groupId) recs = recs.filter(r => r.groupIds.includes(st.groupId));
+  if (excludeLarge) recs = recs.filter(r => r.mode !== 'large');
+  // 修正总支出：用配置的固定支出总额替代 sum.fixedExp（避免重复记录造成天文数字）
+  const statGroup = (st.dim === 'group' && st.groupId) ? Store.groups.find(x => x.id === st.groupId) : null;
+  const statFixedCfg = statGroup ? (statGroup.fixedExpenses || []).reduce((a, f) => a + (Number(f.amount) || 0), 0) : 0;
+  const sum = Calc.summarize(recs, statFixedCfg);
+  const avg = Calc.dailyAvg(sum, start, end);
+  const cleanExpense = sum.expense;
+  const cleanNet = sum.income - cleanExpense;
+  /* 日均消费·口径A：全维度统一 (日常 + 大额) ÷ 已过去天数（不含固定支出）
+     联动「排除大额」开关：开启时仅计日常，关闭时日常 + 大额 */
+  const avgExpense = excludeLarge ? sum.dailyExp : (sum.dailyExp + sum.largeExp);
+
+  /* 概览四格 */
+  $('#statGrid').innerHTML = `
+    <div class="stat-cell"><div class="k">总支出</div><div class="v exp">¥${money(cleanExpense)}</div></div>
+    <div class="stat-cell"><div class="k">总收入</div><div class="v inc">¥${money(sum.income)}</div></div>
+    <div class="stat-cell"><div class="k">结余</div><div class="v" style="color:${cleanNet >= 0 ? 'var(--green)' : 'var(--red)'}">¥${money(cleanNet)}</div></div>
+    <div class="stat-cell"><div class="k">日均消费</div><div class="v">¥${money(avgExpense / Math.max(1, avg.elapsed))}</div></div>`;
+
+  /* 饼图（分类支出占比）+ 图例（点击展开分类明细） */
+  const catItems = Object.entries(sum.byCat).sort((a, b) => b[1] - a[1])
+    .map(([label, value]) => ({ label, value, color: catColor(label) }));
+  $('#pieBox').innerHTML = svgPie(catItems);
+  const totalExp = cleanExpense || 1;
+  $('#pieLegend').innerHTML = catItems.map(it =>
+    `<button class="lg-item" data-cat="${esc(it.label)}"><i style="background:${it.color}"></i>${esc(it.label)} ¥${money(it.value)}<span class="lg-pct">${Math.round(it.value / totalExp * 100)}%</span></button>`).join('')
+    || '<div class="empty-tip">暂无支出</div>';
+  const expandCat = cat => {
+    const detail = recs.filter(r => r.type === 'expense' && r.category === cat);
+    $('#pieLegend').querySelectorAll('.lg-item').forEach(x => x.classList.toggle('on', x.dataset.cat === cat));
+    let box = $('#catDetailBox');
+    if (!box) { box = document.createElement('div'); box.id = 'catDetailBox'; $('#pieLegend').after(box); }
+    box.innerHTML = detail.length
+      ? `<ul style="margin-top:8px">${detail.map(recItemHtml).join('')}</ul>`
+      : '<div class="empty-tip">该分类暂无明细</div>';
+    bindRecList('#catDetailBox ul', detail);
+  };
+  $('#pieBox').querySelectorAll('path[data-cat]').forEach(p => p.onclick = () => expandCat(p.dataset.cat));
+  $('#pieLegend').querySelectorAll('.lg-item').forEach(b => b.onclick = () => expandCat(b.dataset.cat));
+
+  /* 每日收支柱状图 */
+  const days = [];
+  let cur = start;
+  const maxBars = 31;
+  let count = dayDiff(start, end) + 1;
+  while (cur <= end && days.length < maxBars) {
+    const d = sum.byDay[cur] || { exp: 0, inc: 0 };
+    days.push({ label: cur.slice(8) === '' ? cur.slice(5) : String(Number(cur.slice(8))), exp: d.exp, inc: d.inc });
+    cur = addDays(cur, 1);
+  }
+  $('#barBox').innerHTML = count > maxBars
+    ? '<div class="empty-tip">周期过长，柱状图展示前 ' + maxBars + ' 天</div>' + svgBars(days)
+    : (days.length ? svgBars(days) : '<div class="empty-tip">暂无数据</div>');
+
+  /* 周期明细 */
+  bindRecList('#statRecordList', recs.slice(0, 50));
+  if (recs.length > 50) $('#statRecordList').insertAdjacentHTML('beforeend', `<div class="empty-tip">仅展示前 50 条，共 ${recs.length} 条</div>`);
+}
+/* 统计周期切换 */
+function shiftStat(dir) {
+  const st = statsState;
+  if (st.dim === 'day') st.cursor = addDays(st.cursor, dir);
+  else if (st.dim === 'week') st.cursor = addDays(st.cursor, dir * 7);
+  else if (st.dim === 'month') st.cursor = addMonths(st.cursor + '-01', dir).slice(0, 7);
+  renderStats();
+}
+
+/* ============================================================
+ * 分组页 & 分组详情
+ * ============================================================ */
+function renderGroups() {
+  const today = todayStr();
+  $('#groupList').innerHTML = Store.groups.length ? Store.groups
+    .slice().sort((a, b) => b.startDate.localeCompare(a.startDate))
+    .map(g => {
+      const bs = Calc.budgetState(g);
+      const status = g.startDate <= today && today <= g.endDate ? ['ongoing', '进行中'] : (today > g.endDate ? ['ended', '已结束'] : ['future', '未开始']);
+      const avg = Calc.dailyAvg(bs.sum, g.startDate, g.endDate);
+      return `<div class="group-card" data-id="${g.id}">
+        <div class="gc-head">
+          <div><div class="gc-name">${esc(g.name)}</div><div class="gc-range">${g.startDate} ~ ${g.endDate}（${dayDiff(g.startDate, g.endDate) + 1} 天）</div></div>
+          <span class="gc-status ${status[0]}">${status[1]}</span>
+        </div>
+        <div class="gc-stats">
+          <div class="pp-cell"><div class="k">总支出</div><div class="v">¥${money(bs.sum.dailyExp + bs.sum.largeExp + ((g.fixedExpenses || []).reduce((a,f)=>a+(Number(f.amount)||0),0)))}</div></div>
+          <div class="pp-cell"><div class="k">日均</div><div class="v">¥${money(bs.flexible / avg.elapsed)}</div></div>
+          <div class="pp-cell"><div class="k">预算剩余</div><div class="v" style="color:${bs.level === 'danger' ? 'var(--red)' : bs.level === 'warn' ? 'var(--orange)' : 'var(--green)'}">¥${money(bs.budgetLeft)}</div></div>
+        </div>
+      </div>`;
+    }).join('') : '<div class="empty-tip" style="background:var(--card);border-radius:16px;padding:20px">还没有时段分组</div>';
+  $('#groupList').querySelectorAll('.group-card').forEach(c => c.onclick = () => openGroupDetail(c.dataset.id));
+}
+
+let gdGroupId = null, gdCatMode = 'all';
+function openGroupDetail(id) {
+  gdGroupId = id; gdCatMode = 'all';
+  switchPage('group-detail');
+  renderGroupDetail();
+}
+function renderGroupDetail() {
+  const g = Calc.getGroup(gdGroupId); if (!g) { switchPage('groups'); return; }
+  $('#gdName').textContent = g.name;
+  $('#gdRange').textContent = `${g.startDate} ~ ${g.endDate} · ${dayDiff(g.startDate, g.endDate) + 1} 天`;
+  const recs = Store.records.filter(r => r.groupIds.includes(g.id));
+  const realFixedExp = (g.fixedExpenses || []).reduce((a, f) => a + (Number(f.amount) || 0), 0);
+  const sum = Calc.summarize(recs, realFixedExp);
+  const avg = Calc.dailyAvg(sum, g.startDate, g.endDate);
+  const bs = Calc.budgetState(g);
+  // 真实总支出：用配置的固定支出总额替代 sum.fixedExp（避免历史重复记录导致天文数字）
+  const realExpense = sum.dailyExp + sum.largeExp + realFixedExp;
+  const realNet = sum.income - realExpense;
+  $('#gdGrid').innerHTML = `
+    <div class="stat-cell"><div class="k">总支出</div><div class="v exp">¥${money(realExpense)}</div></div>
+    <div class="stat-cell"><div class="k">总收入</div><div class="v inc">¥${money(sum.income)}</div></div>
+    <div class="stat-cell"><div class="k">结余</div><div class="v" style="color:${realNet >= 0 ? 'var(--green)' : 'var(--red)'}">¥${money(realNet)}</div></div>
+    <div class="stat-cell"><div class="k">日均·口径A</div><div class="v">¥${money(avg.avg)}</div></div>`;
+  /* 预算与储蓄 */
+  const fixedTotal = (g.fixedExpenses || []).reduce((a, f) => a + (Number(f.amount) || 0), 0);
+  const barColor = bs.level === 'danger' ? 'var(--red)' : bs.level === 'warn' ? 'var(--orange)' : 'var(--primary)';
+  $('#gdBudget').innerHTML = `
+    <div class="gc-stats">
+      <div class="pp-cell"><div class="k">周期工资</div><div class="v">¥${money(g.salary)}</div></div>
+      <div class="pp-cell"><div class="k">固定支出</div><div class="v">¥${money(fixedTotal)}</div></div>
+      <div class="pp-cell"><div class="k">可支配</div><div class="v">¥${money(g.salary - fixedTotal)}</div></div>
+      <div class="pp-cell"><div class="k">储蓄剩余</div><div class="v" style="color:${bs.savingsUsed > 0 ? 'var(--red)' : 'var(--green)'}">¥${money(bs.savingsLeft)}</div></div>
+    </div>
+    <div style="margin-top:10px;font-size:12px;color:var(--muted)">可用预算（¥${money(g.availableBudget)} + 收入 ¥${money(sum.income)}）</div>
+    <div style="height:10px;background:var(--card2);border-radius:999px;margin-top:5px;overflow:hidden">
+      <div style="height:100%;width:${Math.max(2, Math.min(100, (bs.pool ? bs.budgetUsed / bs.pool : 0) * 100))}%;background:${barColor};border-radius:999px;transition:width .3s"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:12px;margin-top:4px">
+      <span>已用 ¥${money(bs.budgetUsed)}</span>
+      <span style="color:${bs.level === 'ok' ? 'var(--green)' : 'var(--red)'};font-weight:700">剩余 ¥${money(bs.budgetLeft)}${bs.savingsUsed > 0 ? ` · 已动用储蓄 ¥${money(bs.savingsUsed)}` : ''}</span>
+    </div>
+    ${bs.catOver.length ? `<div style="margin-top:8px;background:var(--red-bg);border-radius:10px;padding:8px 10px;font-size:12px;color:var(--red);font-weight:600">⚠ 分类超支：${bs.catOver.map(c => `${c.category} ¥${money(c.used)}/${money(c.amount)}`).join('；')}</div>` : ''}
+    ${(g.fixedExpenses || []).length ? `<div style="margin-top:8px;font-size:12px;color:var(--muted)">固定支出：¥${money(fixedTotal)}/月（${g.fixedExpenses.length}项）</div>` : ''}`;
+  /* 分类占比（日常/大额/固定/合计四种口径） */
+  $$('#gdCatSeg button').forEach(b => b.classList.toggle('on', b.dataset.v === gdCatMode));
+  const modeRecs = recs.filter(r => {
+    if (gdCatMode === 'all') return r.type === 'expense';
+    if (gdCatMode === 'fixed') return r.isFixed;
+    if (gdCatMode === 'daily') return r.mode === 'daily' && !r.isFixed;
+    return r.mode === gdCatMode;
+  });
+  // 修复：按 Tab 维度动态传入 fixedTotalOverride——日常/大额不叠加配置固定支出，固定/合计才叠加
+  const gdFixedOverride = (gdCatMode === 'fixed' || gdCatMode === 'all') ? realFixedExp : null;
+  const catItems = Object.entries(Calc.summarize(modeRecs, gdFixedOverride).byCat).sort((a, b) => b[1] - a[1])
+    .map(([label, value]) => ({ label, value, color: catColor(label) }));
+  $('#gdPie').innerHTML = svgPie(catItems);
+  const t2 = catItems.reduce((a, b) => a + b.value, 0) || 1;
+  $('#gdLegend').innerHTML = catItems.map(it => `<button class="lg-item" data-cat="${esc(it.label)}"><i style="background:${it.color}"></i>${esc(it.label)}<span class="lg-pct">${Math.round(it.value / t2 * 100)}%</span></button>`).join('') || '<div class="empty-tip">暂无数据</div>';
+  /* 每日柱状图（日常消费） */
+  const days = [];
+  let cur = g.startDate;
+  while (cur <= g.endDate && days.length < 31) {
+    // 计算当天到当前周期截止的固定支出天数（用于等比例分摊）
+    const dayRecs = Store.records.filter(r => r.date === cur && r.groupIds.includes(g.id));
+    /* 每日柱状图展示真实逐日消费（含固定支出在其扣款日），不再把整月固定支出摊到每一天 */
+    const daySum = Calc.summarize(dayRecs, null);
+    const d = daySum.byDay[cur] || { exp: 0, inc: 0 };
+    days.push({ label: String(Number(cur.slice(8))), exp: d.exp, inc: d.inc });
+    cur = addDays(cur, 1);
+  }
+  $('#gdBar').innerHTML = svgBars(days);
+  /* 消费明细（随 Tab 切换） */
+  const tabLabels = { daily: '日常消费明细', large: '大额消费明细', fixed: '固定支出明细', all: '全部消费明细' };
+  const tabColors = { daily: 'var(--primary)', large: 'var(--orange)', fixed: 'var(--red)', all: 'var(--muted)' };
+  $('#gdRecListTitle').innerHTML = `<span class="dot" style="background:${tabColors[gdCatMode]}"></span>${tabLabels[gdCatMode]}`;
+  bindRecList('#gdRecList', modeRecs);
+  /* 周期对比（上一个等长周期） */
+  const span = dayDiff(g.startDate, g.endDate) + 1;
+  const pStart = addDays(g.startDate, -span), pEnd = addDays(g.startDate, -1);
+  const pSum = Calc.summarize(Calc.recordsInRange(pStart, pEnd));
+  // 上期同样按「非固定支出 + 配置固定支出」口径，与本期 realExpense 对齐，避免跨周期对比口径不对等
+  const pRealExpense = pSum.dailyExp + pSum.largeExp + realFixedExp;
+  const diff = realExpense - pRealExpense;
+  const topCats = Object.entries(sum.byCat).sort((a, b) => b[1] - a[1]).slice(0, 3);
+  $('#gdCompare').innerHTML = `
+    <div class="gc-stats">
+      <div class="pp-cell"><div class="k">上一周期</div><div class="v" style="font-size:11px">${pStart.slice(5)}~${pEnd.slice(5)}</div></div>
+      <div class="pp-cell"><div class="k">上期支出</div><div class="v">¥${money(pRealExpense)}</div></div>
+      <div class="pp-cell"><div class="k">本期对比</div><div class="v" style="color:${diff > 0 ? 'var(--red)' : 'var(--green)'}">${diff > 0 ? '+' : ''}${money(diff)}</div></div>
+    </div>
+    ${topCats.length ? `<div style="margin-top:8px;font-size:12px;color:var(--muted);line-height:1.8">本期分类 Top：${topCats.map(([c, v]) => `${c} ¥${money(v)}（上期 ¥${money(pSum.byCat[c] || 0)}）`).join(' · ')}</div>` : ''}`;
+  $$('#gdCatSeg button').forEach(b => b.onclick = () => { gdCatMode = b.dataset.v; renderGroupDetail(); });
+}
+
+/* ============================================================
+ * 待办页
+ * ============================================================ */
+function todoItemHtml(t, showOverdue) {
+  const today = todayStr();
+  const overdue = showOverdue && !t.isCompleted && t.remindDate < today;
+  return `<li class="todo-item ${t.isCompleted ? 'done' : ''} ${overdue ? 'overdue' : ''}" data-id="${t.id}">
+    <button class="todo-check" data-act="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"><path d="M5 13l4 4 10-10"/></svg></button>
+    <div class="todo-body">
+      <div class="todo-title">${esc(t.title)}</div>
+      <div class="todo-meta">${overdue ? `<span class="od-badge">逾期 ${dayDiff(t.remindDate, today)} 天</span>` : ''}${t.remindDate}${t.relatedAmount ? ` · ¥${money(t.relatedAmount)}` : ''}</div>
+    </div>
+    <div class="todo-actions"><button data-act="edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg></button></div>
+  </li>`;
+}
+function bindTodoList(sel, list, showOverdue) {
+  const el = $(sel);
+  el.innerHTML = list.length ? list.map(t => todoItemHtml(t, showOverdue)).join('') : '<div class="empty-tip">暂无</div>';
+  el.querySelectorAll('.todo-item').forEach(item => {
+    item.querySelector('[data-act="check"]').onclick = e => { e.stopPropagation(); completeTodoFlow(item.dataset.id); };
+    item.querySelector('[data-act="edit"]').onclick = e => { e.stopPropagation(); openTodoModal(item.dataset.id); };
+  });
+}
+function renderTodos() {
+  const today = todayStr();
+  const pend = Store.todos.filter(t => !t.isCompleted);
+  bindTodoList('#todoTodayList', pend.filter(t => t.remindDate <= today).sort((a, b) => a.remindDate.localeCompare(b.remindDate)), true);
+  bindTodoList('#todoFutureList', pend.filter(t => t.remindDate > today).sort((a, b) => a.remindDate.localeCompare(b.remindDate)), false);
+  bindTodoList('#todoDoneList', Store.todos.filter(t => t.isCompleted).slice(-30).reverse(), false);
+}
+
+/* 待办完成流程：带金额联动记账（弹窗询问） */
+function completeTodoFlow(id) {
+  const t = Store.todos.find(x => x.id === id); if (!t) return;
+  if (t.isCompleted) { t.isCompleted = false; Store.save('todo_items'); renderAll(); return; }
+  if (t.relatedAmount && t.linkRecord !== false) {
+    $('#tlMsg').innerHTML = `「${esc(t.title)}」关联金额 <b style="color:var(--text)">¥${money(t.relatedAmount)}</b>，是否同步生成一笔支出记录？`;
+    $('#modalTodoLink').classList.add('show');
+    $('#tlYes').onclick = () => {
+      $('#modalTodoLink').classList.remove('show');
+      Store.addRecord({
+        id: uid(), type: 'expense', mode: 'daily', amount: t.relatedAmount, category: '其他',
+        tags: [], date: todayStr(), note: '待办: ' + t.title,
+        groupIds: Calc.groupIdsForDate(todayStr()), isFixed: false, createdAt: Date.now(), updatedAt: Date.now()
+      });
+      t.isCompleted = true; Store.save('todo_items');
+      toast('已完成并生成支出记录'); renderAll();
+    };
+    $('#tlNo').onclick = () => { $('#modalTodoLink').classList.remove('show'); t.isCompleted = true; Store.save('todo_items'); toast('已标记完成'); renderAll(); };
+  } else {
+    t.isCompleted = true; Store.save('todo_items'); toast('已标记完成'); renderAll();
+  }
+}
+
+/* ============================================================
+ * 历史记录页（筛选：日期/分类/标签/金额范围）
+ * ============================================================ */
+function renderRecords() {
+  /* 分类下拉选项 */
+  const catSel = $('#fltCat');
+  const keep = catSel.value;
+  catSel.innerHTML = '<option value="">全部分类</option>' +
+    [...Store.data.category_config.expense, ...Store.data.category_config.income].map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  catSel.value = keep;
+  const tagSel = $('#fltTag'); const keepTag = tagSel.value;
+  tagSel.innerHTML = '<option value="">全部标签</option>' + Store.data.tag_list.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join('');
+  tagSel.value = keepTag;
+
+  const s = $('#fltStart').value, e = $('#fltEnd').value, c = catSel.value, tg = tagSel.value;
+  const min = parseFloat($('#fltMin').value), max = parseFloat($('#fltMax').value);
+  let list = Store.records.filter(r => {
+    if (s && r.date < s) return false;
+    if (e && r.date > e) return false;
+    if (c && r.category !== c) return false;
+    if (tg && !(r.tags || []).includes(tg)) return false;
+    if (!isNaN(min) && r.amount < min) return false;
+    if (!isNaN(max) && r.amount > max) return false;
+    return true;
+  });
+  const totalExp = list.filter(r => r.type === 'expense').reduce((a, r) => a + r.amount, 0);
+  const totalInc = list.filter(r => r.type === 'income').reduce((a, r) => a + r.amount, 0);
+  $('#recCount').innerHTML = `共 ${list.length} 条 · 支出 <b style="color:var(--red)">¥${money(totalExp)}</b> · 收入 <b style="color:var(--green)">¥${money(totalInc)}</b>`;
+  bindRecList('#allRecordList', list.slice(0, 200));
+  if (list.length > 200) $('#allRecordList').insertAdjacentHTML('beforeend', `<div class="empty-tip">仅展示前 200 条，可缩小筛选范围</div>`);
+}
+
+/* 设置页描述文案 */
+function renderSettingsDesc() {
+  const cc = Store.data.category_config;
+  $('#catCountDesc').textContent = `支出 ${cc.expense.length} 个 · 收入 ${cc.income.length} 个`;
+  $('#tplCountDesc').textContent = `${Store.data.quick_templates.length} 个模板`;
+  $('#tagCountDesc').textContent = `${Store.data.tag_list.length} 个标签`;
+  const bks = Store.data.backup_snapshots;
+  $('#bkDesc').textContent = bks.length ? `每日自动快照，保留最近 7 天（当前 ${bks.length} 份）` : '每日自动快照，保留最近 7 天';
+  /* 存在示例数据时才展示「清空示例数据」入口 */
+  $('#btnClearDemo').style.display = Store.data.system_settings.demoSeeded ? '' : 'none';
+}
+
+function renderAll() {
+  renderHome();
+  if (currentPage === 'stats') renderStats();
+  if (currentPage === 'groups') renderGroups();
+  if (currentPage === 'group-detail') renderGroupDetail();
+  if (currentPage === 'todos') renderTodos();
+  if (currentPage === 'records') renderRecords();
+  if (currentPage === 'settings') renderSettingsDesc();
+}
+
+/* ============================================================
+ * 弹窗交互层
+ * ============================================================ */
+/* 遮罩点击关闭 + 关闭按钮 */
+$$('.modal-mask').forEach(mask => {
+  mask.addEventListener('click', e => { if (e.target === mask && mask.id !== 'modalConfirm' && mask.id !== 'modalTodoLink') mask.classList.remove('show'); });
+});
+document.addEventListener('click', e => {
+  const btn = e.target.closest('[data-close]');
+  if (btn) $('#' + btn.dataset.close).classList.remove('show');
+});
+
+/* ---------- 记账编辑弹窗（新增/编辑共用） ---------- */
+const mr = { id: null, mode: 'daily', type: 'expense', category: '饮食', tags: [], groupIds: [] };
+function openRecordModal(id) {
+  const r = Store.records.find(x => x.id === id); if (!r) return;
+  mr.id = r.id; mr.mode = r.mode; mr.type = r.type; mr.category = r.category; mr.tags = [...(r.tags || [])]; mr.groupIds = [...(r.groupIds || [])];
+  mr.isFixed = !!r.isFixed;
+  /* 固定支出自动生成记录：隐藏删除按钮并展示引导提示，避免用户误删后再次被自动生成（表现"删不掉"） */
+  $('#mrDelete').style.display = mr.isFixed ? 'none' : '';
+  $('#mrFixedNote').style.display = mr.isFixed ? 'block' : 'none';
+  $('#mrTitle').textContent = '编辑记录';
+  $('#mrAmount').value = r.amount; $('#mrDate').value = r.date; $('#mrNote').value = r.note || '';
+  $$('#mrSegMode button').forEach(b => b.classList.toggle('on', b.dataset.v === mr.mode));
+  $('#mrSegType').className = 'seg ' + (mr.type === 'expense' ? 'type-exp' : 'type-inc');
+  $$('#mrSegType button').forEach(b => b.classList.toggle('on', b.dataset.v === mr.type));
+  renderMrForm();
+  $('#modalRecord').classList.add('show');
+}
+function renderMrForm() {
+  const cats = Store.data.category_config[mr.type];
+  if (!cats.includes(mr.category)) mr.category = cats[0];
+  $('#mrCatGrid').innerHTML = cats.map(c =>
+    `<button class="cat-cell ${c === mr.category ? 'on' : ''}" data-cat="${esc(c)}">${catIcon(c)}<span>${esc(c)}</span></button>`).join('');
+  $('#mrCatGrid').querySelectorAll('.cat-cell').forEach(b => b.onclick = () => { mr.category = b.dataset.cat; renderMrForm(); });
+  $('#mrTags').innerHTML = Store.data.tag_list.map(t =>
+    `<button class="chip ${mr.tags.includes(t) ? 'on' : ''}" data-tag="${esc(t)}">${esc(t)}</button>`).join('') || '<span style="font-size:12px;color:var(--muted)">暂无标签</span>';
+  $('#mrTags').querySelectorAll('.chip').forEach(b => b.onclick = () => {
+    const t = b.dataset.tag;
+    mr.tags = mr.tags.includes(t) ? mr.tags.filter(x => x !== t) : [...mr.tags, t];
+    renderMrForm();
+  });
+  /* 所属分组手动调整（自动归属 + 手动增删） */
+  $('#mrGroups').innerHTML = Store.groups.map(g =>
+    `<button class="chip ${mr.groupIds.includes(g.id) ? 'on' : ''}" data-gid="${g.id}">${esc(g.name)}${g.startDate <= $('#mrDate').value && $('#mrDate').value <= g.endDate ? '·含此日' : ''}</button>`).join('') || '<span style="font-size:12px;color:var(--muted)">无分组（仅自然月）</span>';
+  $('#mrGroups').querySelectorAll('.chip').forEach(b => b.onclick = () => {
+    const gid2 = b.dataset.gid;
+    mr.groupIds = mr.groupIds.includes(gid2) ? mr.groupIds.filter(x => x !== gid2) : [...mr.groupIds, gid2];
+    renderMrForm();
+  });
+}
+$$('#mrSegMode button').forEach(b => b.onclick = () => { mr.mode = b.dataset.v; $$('#mrSegMode button').forEach(x => x.classList.toggle('on', x === b)); });
+$$('#mrSegType button').forEach(b => b.onclick = () => {
+  mr.type = b.dataset.v;
+  $('#mrSegType').className = 'seg ' + (mr.type === 'expense' ? 'type-exp' : 'type-inc');
+  $$('#mrSegType button').forEach(x => x.classList.toggle('on', x === b));
+  renderMrForm();
+});
+/* 校验金额：正数、最多两位小数 */
+/* 校验金额：正数、最多两位小数（按字符串小数位判断，规避 66.6*100 浮点误差） */
+function validAmount(v) {
+  const s = String(v).trim();
+  const n = Number(s);
+  if (s === '' || isNaN(n) || n <= 0) return false;
+  if (s.includes('.')) { const dec = s.split('.')[1]; if (dec.length > 2) return false; }
+  return true;
+}
+$('#mrSave').onclick = () => {
+  const r = Store.records.find(x => x.id === mr.id); if (!r) return;
+  if (!validAmount($('#mrAmount').value)) return toast('请输入正确的金额（正数，最多两位小数）', true);
+  if (!$('#mrDate').value) return toast('请选择日期', true);
+  r.mode = mr.mode; r.type = mr.type; r.category = mr.category; r.tags = [...mr.tags]; r.groupIds = [...mr.groupIds];
+  r.amount = Math.round(Number($('#mrAmount').value) * 100) / 100;
+  r.date = $('#mrDate').value; r.note = $('#mrNote').value.trim();
+  Store.updateRecord(r);
+  $('#modalRecord').classList.remove('show');
+  toast('已保存'); renderAll();
+};
+$('#mrDelete').onclick = () => {
+  /* 防护：固定支出自动生成记录不可删（兜底，正常已隐藏按钮） */
+  if (mr.isFixed) { toast('固定支出自动生成记录无法直接删除，请前往分组编辑页删除对应配置', true); return; }
+  confirmBox('删除记录', '确定删除这条记录吗？删除后不可恢复。', () => {
+    Store.removeRecord(mr.id);
+    $('#modalRecord').classList.remove('show');
+    toast('已删除'); renderAll();
+  });
+};
+$('#mrCopy').onclick = () => { $('#modalRecord').classList.remove('show'); copyRecord(mr.id); };
+
+/* ---------- 分组弹窗 ---------- */
+const mg = { id: null, fixed: [], catBudgets: [] };
+function openGroupModal(id) {
+  const g = id ? Calc.getGroup(id) : null;
+  mg.id = g ? g.id : null;
+  mg.fixed = g ? deep(g.fixedExpenses || []) : [];
+  mg.catBudgets = g ? deep(g.categoryBudgets || []) : [];
+  $('#mgTitle').textContent = g ? '编辑时段分组' : '新建时段分组';
+  $('#mgName').value = g ? g.name : '';
+  $('#mgStart').value = g ? g.startDate : todayStr();
+  $('#mgEnd').value = g ? g.endDate : addMonths(todayStr(), 1);
+  $('#mgSalary').value = g ? g.salary : '';
+  $('#mgBudget').value = g ? g.availableBudget : '';
+  $('#mgSavings').value = g ? g.savingsTarget : '';
+  $('#mgDelete').style.display = g ? '' : 'none';
+  renderMgForm();
+  $('#modalGroup').classList.add('show');
+}
+function renderMgForm() {
+  // 固定支出内联行渲染（恢复为内联输入行，不用弹窗）
+  $('#mgFixedList').innerHTML = mg.fixed.length ? mg.fixed.map((f, i) =>
+    `<div class="fx-row">
+      <input type="text" value="${esc(f.icon || '🔒')}" data-fx="${i}" data-fkf="icon" style="flex:0 0 40px;text-align:center;font-size:18px;cursor:pointer" title="点击换图标" />
+      <input type="text" value="${esc(f.name)}" data-fx="${i}" data-fkf="name" maxlength="20" placeholder="名称" style="flex:1.4" />
+      <input type="number" value="${f.amount}" data-fx="${i}" data-fkf="amount" inputmode="decimal" placeholder="金额" style="flex:1" />
+      <input type="number" value="${f.payDay}" data-fx="${i}" data-fkf="payDay" inputmode="numeric" min="1" max="31" placeholder="扣款日" style="flex:0 0 60px" />
+      <button class="fx-del" data-fdel="${i}">✕</button>
+    </div>`).join('') : '<div class="empty-tip">暂无固定支出，点击「添加」录入</div>';
+  $('#mgFixedList').querySelectorAll('[data-fkf]').forEach(el => {
+    /* 输入层修复：amount/payDay 强制 Number，空值/非法字符兜底 0；其余字段保持字符串 */
+    el.oninput = () => {
+      const key = el.dataset.fkf;
+      if (key === 'amount') {
+        /* 过滤非法字符后转数值，异常兜底 0 */
+        mg.fixed[+el.dataset.fx].amount = num(el.value.replace(/[^\d.\-]/g, ''));
+      } else if (key === 'payDay') {
+        const pd = Math.min(31, Math.max(1, num(String(el.value).replace(/[^\d]/g, '')) || 1));
+        mg.fixed[+el.dataset.fx].payDay = pd;
+      } else {
+        mg.fixed[+el.dataset.fx][key] = el.value.trim();
+      }
+      updateMgFormula();
+    };
+  });
+  $('#mgFixedList').querySelectorAll('[data-fdel]').forEach(b => b.onclick = () => { mg.fixed.splice(+b.dataset.fdel, 1); renderMgForm(); });
+  $('#mgCatBudgetList').innerHTML = mg.catBudgets.map((c, i) =>
+    `<div class="fx-row">
+      <select data-ci="${i}" data-cf="category" style="flex:1.4">${Store.data.category_config.expense.map(x => `<option value="${esc(x)}" ${x === c.category ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>
+      <input type="number" value="${c.amount}" data-ci="${i}" data-cf="amount" inputmode="decimal" placeholder="限额" style="flex:1">
+      <button class="fx-del" data-cdel="${i}">✕</button>
+    </div>`).join('');
+  $('#mgCatBudgetList').querySelectorAll('select').forEach(sel => sel.onchange = () => { mg.catBudgets[+sel.dataset.ci].category = sel.value; });
+  $('#mgCatBudgetList').querySelectorAll('input').forEach(inp => inp.oninput = () => { mg.catBudgets[+inp.dataset.ci].amount = Number(inp.value); });
+  $('#mgCatBudgetList').querySelectorAll('[data-cdel]').forEach(b => b.onclick = () => { mg.catBudgets.splice(+b.dataset.cdel, 1); renderMgForm(); });
+  updateMgFormula();
+}
+function updateMgFormula() {
+  const salary = Number($('#mgSalary').value) || 0;
+  const fx = mg.fixed.reduce((a, f) => a + (Number(f.amount) || 0), 0);
+  const budget = Number($('#mgBudget').value) || 0, sav = Number($('#mgSavings').value) || 0;
+  const disposable = salary - fx;
+  const totalAlloc = budget + sav;
+  const surplus = disposable - totalAlloc;
+  // 当未输入时不显示
+  if (!salary && !fx && !budget && !sav) { $('#mgFormula').innerHTML = ''; return; }
+  let html = `<div style="line-height:1.8">`;
+  // 第一步：工资 - 固定支出 = 可支配
+  html += `<div style="margin-bottom:4px">`;
+  html += `<span style="color:var(--primary)">周期工资</span> ¥${money(salary)}`;
+  if (fx > 0) html += ` <span style="color:var(--muted)">−</span> <span style="color:var(--red)">固定支出</span> ¥${money(fx)}`;
+  html += ` <span style="color:var(--muted)">=</span> <b style="color:var(--orange)">可支配 ¥${money(disposable)}</b></div>`;
+  // 第二步：可支配 → 可用预算 + 储蓄目标
+  if (budget > 0 || sav > 0) {
+    html += `<div style="margin-bottom:2px">`;
+    html += `<span style="color:var(--orange)">可支配</span> ¥${money(disposable)}`;
+    html += ` <span style="color:var(--muted)">→</span> <span style="color:var(--primary)">可用预算</span> ¥${money(budget)}`;
+    if (sav > 0) html += ` <span style="color:var(--muted)">+</span> <span style="color:#5B8C5A">储蓄目标</span> ¥${money(sav)}`;
+    html += ` <span style="color:var(--muted)">=</span> <b>分配 ¥${money(totalAlloc)}</b></div>`;
+  }
+  // 第三步：差额提示
+  if (totalAlloc > 0 && surplus > 0)
+    html += `<div style="margin-top:4px;color:var(--green);font-weight:600">✓ 可支配充足，还有 ¥${money(surplus)} 未分配</div>`;
+  else if (totalAlloc > 0 && surplus < 0)
+    html += `<div style="margin-top:4px;color:var(--red);font-weight:600">⚠ 分配超出可支配 ¥${money(Math.abs(surplus))}，超出部分将动用储蓄</div>`;
+  else if (surplus > 0)
+    html += `<div style="margin-top:4px;color:var(--muted)">未配置可用预算/储蓄目标，可支配 ¥${money(disposable)} 暂不计入预算池</div>`;
+  html += `</div>`;
+  $('#mgFormula').innerHTML = html;
+}
+['mgSalary', 'mgBudget', 'mgSavings'].forEach(id => $('#' + id).oninput = updateMgFormula);
+  // 固定支出添加按钮：追加一行空输入行
+  $('#mgAddFixed').onclick = () => {
+    mg.fixed.push({ icon: '🔒', name: '', amount: 0, payDay: 1 });
+    renderMgForm();
+    // 聚焦到新增行的名称输入框
+    setTimeout(() => {
+      const lastInput = $('#mgFixedList').querySelectorAll('[data-fkf="name"]')[mg.fixed.length - 1];
+      if (lastInput) lastInput.focus();
+    }, 50);
+  };
+  // 图标单元格点击切换
+  $('#mgFixedList').querySelectorAll('[data-fkf="icon"]').forEach(el => {
+    el.onclick = (e) => {
+      e.preventDefault();
+      const i = +el.dataset.fx;
+      const icons = ['🔒','🏠','💡','📱','🚗','🍜','🛒','💊','📚','⚡','🎯','📦'];
+      const cur = icons.indexOf(el.value);
+      el.value = icons[(cur + 1) % icons.length];
+      mg.fixed[i].icon = el.value;
+    };
+  });
+$('#mgAddCatBudget').onclick = () => { mg.catBudgets.push({ category: Store.data.category_config.expense[0], amount: 0 }); renderMgForm(); };
+$('#mgSave').onclick = () => {
+  const name = $('#mgName').value.trim();
+  const start = $('#mgStart').value, end = $('#mgEnd').value;
+  if (!name) return toast('请输入分组名称', true);
+  if (!start || !end || start > end) return toast('请设置正确的起止日期', true);
+  /* 禁止名称与起止日期完全一致的重复分组 */
+  if (Store.groups.some(g => g.id !== mg.id && g.name === name && g.startDate === start && g.endDate === end))
+    return toast('已存在名称和周期完全相同的分组', true);
+  const fixed = mg.fixed.filter(f => f.name.trim() && Number(f.amount) > 0 && f.payDay >= 1 && f.payDay <= 31);
+  const catB = mg.catBudgets.filter(c => Number(c.amount) > 0);
+  const g = {
+    id: mg.id || uid(), name, startDate: start, endDate: end,
+    salary: Math.round((Number($('#mgSalary').value) || 0) * 100) / 100,
+    fixedExpenses: fixed,
+    availableBudget: Math.round((Number($('#mgBudget').value) || 0) * 100) / 100,
+    savingsTarget: Math.round((Number($('#mgSavings').value) || 0) * 100) / 100,
+    categoryBudgets: catB, createdAt: Date.now()
+  };
+  Store.saveGroup(g);
+  /* 周期变化后，组内记录自动重新归属 */
+  Store.records.forEach(r => {
+    if (!r.isFixed && start <= r.date && r.date <= end) {
+      if (!r.groupIds.includes(g.id)) { r.groupIds.push(g.id); Store.updateRecord(r); }
+    } else if (r.groupIds.includes(g.id) && (!r.isFixed)) {
+      r.groupIds = r.groupIds.filter(x => x !== g.id); Store.updateRecord(r);
+    }
+  });
+  ensureFixedRecords();
+  $('#modalGroup').classList.remove('show');
+  toast('分组已保存'); renderAll();
+};
+$('#mgDelete').onclick = () => {
+  confirmBox('删除分组', '仅删除分组本身；组内手动记账记录会保留并继续纳入自然月统计，该分组自动生成的固定支出记录将同步删除。确认删除？', () => {
+    Store.removeGroup(mg.id);
+    /* 固定支出记录依附分组配置存在：分组删除后失去管理入口且无法清理，必须同步删除，避免僵尸数据永久虚增总支出
+       普通手动记账记录：沿用原有设计，仅移除分组归属，记录本身保留
+       注：Store.records 为 getter（无 setter），删除须倒序 splice 原地操作 */
+    for (let i = Store.records.length - 1; i >= 0; i--) {
+      const r = Store.records[i];
+      if (!r.groupIds || !r.groupIds.includes(mg.id)) continue;
+      if (r.isFixed) {
+        Store.records.splice(i, 1);                                  /* 清除该分组自动生成的固定支出记录 */
+      } else {
+        r.groupIds = r.groupIds.filter(x => x !== mg.id);            /* 普通记录仅摘归属，保留记录本身 */
+        Store.updateRecord(r);
+      }
+    }
+    Store.save('account_records');                                    /* splice 不触发保存，显式落盘 */
+    $('#modalGroup').classList.remove('show');
+    toast('分组已删除，记录已保留'); switchPage('groups'); renderAll();
+  });
+};
+
+/* ---------- 待办弹窗 ---------- */
+let mtId = null;
+function openTodoModal(id) {
+  const t = id ? Store.todos.find(x => x.id === id) : null;
+  mtId = t ? t.id : null;
+  $('#mtTitle').textContent = t ? '编辑待办' : '新增待办';
+  $('#mtTitleInput').value = t ? t.title : '';
+  $('#mtDate').value = t ? t.remindDate : todayStr();
+  $('#mtAmount').value = t && t.relatedAmount ? t.relatedAmount : '';
+  $('#mtDelete').style.display = t ? '' : 'none';
+  $('#modalTodo').classList.add('show');
+}
+$('#mtSave').onclick = () => {
+  const title = $('#mtTitleInput').value.trim();
+  if (!title) return toast('请输入事项名称', true);
+  if (!$('#mtDate').value) return toast('请选择提醒日期', true);
+  const amtRaw = $('#mtAmount').value;
+  const t = mtId ? Store.todos.find(x => x.id === mtId) : { id: uid(), isCompleted: false, linkRecord: true, createdAt: Date.now() };
+  t.title = title; t.remindDate = $('#mtDate').value;
+  t.relatedAmount = amtRaw === '' ? null : Math.round(Number(amtRaw) * 100) / 100;
+  if (t.relatedAmount !== null && (isNaN(t.relatedAmount) || t.relatedAmount <= 0)) return toast('关联金额需为正数', true);
+  Store.saveTodo(t);
+  $('#modalTodo').classList.remove('show');
+  toast('待办已保存'); renderAll();
+};
+$('#mtDelete').onclick = () => confirmBox('删除待办', '确定删除这条待办吗？', () => {
+  Store.removeTodo(mtId); $('#modalTodo').classList.remove('show'); toast('已删除'); renderAll();
+});
+
+/* ---------- 模板管理弹窗 ---------- */
+function openTemplateModal() {
+  renderTplList();
+  const cats = [...Store.data.category_config.expense, ...Store.data.category_config.income];
+  $('#tpCat').innerHTML = cats.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  $('#modalTemplate').classList.add('show');
+}
+function renderTplList() {
+  $('#tplList').innerHTML = Store.data.quick_templates.map(tp =>
+    `<div class="bk-item"><div class="bk-info"><b>${esc(tp.name)}</b><span>${tp.type === 'expense' ? '支出' : '收入'} · ${esc(tp.category)} · ¥${money(tp.amount)}${tp.tag ? ' · ' + esc(tp.tag) : ''}</span></div>
+     <button class="btn-mini warn" data-tpdel="${tp.id}">删除</button></div>`).join('') || '<div class="empty-tip">暂无模板</div>';
+  $('#tplList').querySelectorAll('[data-tpdel]').forEach(b => b.onclick = () => {
+    Store.data.quick_templates = Store.data.quick_templates.filter(x => x.id !== b.dataset.tpdel);
+    Store.save('quick_templates'); renderTplList(); renderSettingsDesc(); renderQuickForm();
+  });
+}
+$$('#tpSegType button').forEach(b => b.onclick = () => {
+  $$('#tpSegType button').forEach(x => x.classList.toggle('on', x === b));
+  const isExp = b.dataset.v === 'expense';
+  $('#tpCat').innerHTML = Store.data.category_config[isExp ? 'expense' : 'income'].map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+});
+$('#tpSave').onclick = () => {
+  const name = $('#tpName').value.trim();
+  const amount = Number($('#tpAmount').value);
+  if (!name) return toast('请输入模板名称', true);
+  if (!validAmount($('#tpAmount').value)) return toast('请输入正确金额', true);
+  Store.data.quick_templates.push({ id: uid(), name, type: $('#tpSegType button.on').dataset.v, category: $('#tpCat').value, amount: Math.round(amount * 100) / 100, tag: $('#tpTag').value.trim() });
+  Store.save('quick_templates');
+  $('#tpName').value = ''; $('#tpAmount').value = ''; $('#tpTag').value = '';
+  toast('模板已保存'); renderTplList(); renderSettingsDesc(); renderQuickForm();
+};
+
+/* ---------- 分类管理弹窗 ---------- */
+let mcType = 'expense';
+function openCatModal() { renderMcList(); $('#modalCat').classList.add('show'); }
+function renderMcList() {
+  $$('#mcSegType button').forEach(b => b.classList.toggle('on', b.dataset.v === mcType));
+  const cats = Store.data.category_config[mcType];
+  $('#mcList').innerHTML = cats.map(c =>
+    `<div class="bk-item"><div class="bk-info" style="display:flex;align-items:center;gap:8px">${catIcon(c)}<b>${esc(c)}</b></div>
+     <button class="btn-mini warn" data-catdel="${esc(c)}">删除</button></div>`).join('') || '<div class="empty-tip">暂无分类</div>';
+  $('#mcList').querySelectorAll('[data-catdel]').forEach(b => b.onclick = () => {
+    const c = b.dataset.catdel;
+    if (cats.length <= 1) return toast('至少保留一个分类', true);
+    const used = Store.records.filter(r => r.category === c).length;
+    const doDel = () => {
+      Store.data.category_config[mcType] = cats.filter(x => x !== c);
+      Store.save('category_config'); renderMcList(); renderSettingsDesc(); renderQuickForm(); toast('分类已删除');
+    };
+    used ? confirmBox('删除分类', `有 ${used} 条记录使用「${c}」，删除分类后记录仍保留原分类名。确认删除？`, doDel) : doDel();
+  });
+}
+$$('#mcSegType button').forEach(b => b.onclick = () => { mcType = b.dataset.v; renderMcList(); });
+$('#mcAdd').onclick = () => {
+  const name = $('#mcNewName').value.trim();
+  if (!name) return toast('请输入分类名称', true);
+  if (Store.data.category_config.expense.includes(name) || Store.data.category_config.income.includes(name))
+    return toast('分类已存在', true);
+  Store.data.category_config[mcType].push(name);
+  Store.save('category_config');
+  $('#mcNewName').value = '';
+  toast('分类已添加'); renderMcList(); renderSettingsDesc(); renderQuickForm();
+};
+
+/* ---------- 标签管理弹窗 ---------- */
+function openTagModal() { renderTagList(); $('#modalTag').classList.add('show'); }
+function renderTagList() {
+  $('#tagList').innerHTML = Store.data.tag_list.map(t =>
+    `<div class="bk-item"><div class="bk-info"><b># ${esc(t)}</b></div><button class="btn-mini warn" data-tagdel="${esc(t)}">删除</button></div>`).join('') || '<div class="empty-tip">暂无标签</div>';
+  $('#tagList').querySelectorAll('[data-tagdel]').forEach(b => b.onclick = () => {
+    const t = b.dataset.tagdel;
+    Store.data.tag_list = Store.data.tag_list.filter(x => x !== t);
+    /* 记录中的该标签一并移除，保持数据一致 */
+    Store.records.forEach(r => { if ((r.tags || []).includes(t)) { r.tags = r.tags.filter(x => x !== t); } });
+    Store.save('account_records');
+    Store.save('tag_list');
+    renderTagList(); renderSettingsDesc(); renderAll(); toast('标签已删除');
+  });
+}
+$('#tagAdd').onclick = () => {
+  const name = $('#tagNewName').value.trim();
+  if (!name) return toast('请输入标签名称', true);
+  if (Store.data.tag_list.includes(name)) return toast('标签已存在', true);
+  Store.data.tag_list.push(name); Store.save('tag_list');
+  $('#tagNewName').value = '';
+  toast('标签已添加'); renderTagList(); renderSettingsDesc(); renderQuickForm();
+};
+
+/* ============================================================
+ * 语音记账（Web Speech API + 口语解析）
+ * ============================================================ */
+const vr = { type: 'expense', recognition: null, listening: false };
+function openVoiceModal() {
+  const cats = [...Store.data.category_config.expense, ...Store.data.category_config.income];
+  $('#vrCat').innerHTML = cats.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  $('#vrAmount').value = ''; $('#voiceResult').innerHTML = '识别结果将显示在这里，可编辑金额与分类后提交';
+  $('#modalVoice').classList.add('show');
+}
+/* 口语解析：提取金额 + 类型 + 分类 */
+function parseSpeech(text) {
+  const m = text.match(/(\d+(?:\.\d{1,2})?)\s*(?:元|块钱?|块)/) || text.match(/(?:花了|付了|收到|花费|消费)\s*(\d+(?:\.\d{1,2})?)/) || text.match(/(\d+(?:\.\d{1,2})?)/);
+  const amount = m ? Number(m[1]) : null;
+  const isIncome = /收到|红包|报销|工资|收入|进账|到账/.test(text);
+  let category = null;
+  const allCats = [...Store.data.category_config.expense, ...Store.data.category_config.income];
+  for (const c of allCats) if (text.includes(c)) { category = c; break; }
+  /* 同义词粗匹配 */
+  if (!category) {
+    if (/午饭|午餐|早饭|晚饭|吃饭|饭|奶茶|咖啡|外卖/.test(text)) category = '饮食';
+    else if (/地铁|公交|打车|车|火车|高铁|机票/.test(text)) category = '交通';
+    else if (/买|购物|淘宝|京东|囤/.test(text)) category = '购物';
+    else if (/房租|水电/.test(text)) category = '住房';
+    else if (/电影|游戏|玩/.test(text)) category = '娱乐';
+    else if (/药|医院|看病/.test(text)) category = '医疗';
+    else if (/书|课|学习/.test(text)) category = '教育';
+  }
+  return { amount, type: isIncome ? 'income' : 'expense', category: category || (isIncome ? '其他' : '其他') };
+}
+$('#btnMicStart').onclick = () => {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return toast('当前浏览器不支持语音识别（建议使用 Chrome/Edge）', true);
+  if (vr.listening) { try { vr.recognition.stop(); } catch (e) {} return; }
+  vr.recognition = new SR();
+  vr.recognition.lang = 'zh-CN'; vr.recognition.interimResults = false;
+  vr.listening = true;
+  $('#btnMicStart').textContent = '正在聆听…';
+  $('#micPulse').style.animationDuration = '.6s';
+  vr.recognition.onresult = e => {
+    const text = e.results[0][0].transcript;
+    const p = parseSpeech(text);
+    $('#voiceResult').innerHTML = `听到：<b>「${esc(text)}」</b>`;
+    vr.type = p.type;
+    $$('#vrSegType button').forEach(b => b.classList.toggle('on', b.dataset.v === p.type));
+    if (p.amount) $('#vrAmount').value = p.amount;
+    if (p.category) $('#vrCat').value = p.category;
+    toast('识别完成，请确认后提交');
+  };
+  vr.recognition.onerror = e => toast('语音识别失败: ' + (e.error === 'not-allowed' ? '请允许麦克风权限' : e.error), true);
+  vr.recognition.onend = () => { vr.listening = false; $('#btnMicStart').textContent = '开始识别'; $('#micPulse').style.animationDuration = '1.4s'; };
+  try { vr.recognition.start(); } catch (e) { toast('无法启动语音识别', true); }
+};
+$$('#vrSegType button').forEach(b => b.onclick = () => { $$('#vrSegType button').forEach(x => x.classList.toggle('on', x === b)); });
+$('#vrSubmit').onclick = () => {
+  if (!validAmount($('#vrAmount').value)) return toast('请输入正确的金额', true);
+  Store.addRecord({
+    id: uid(), type: $('#vrSegType button.on').dataset.v, mode: 'daily',
+    amount: Math.round(Number($('#vrAmount').value) * 100) / 100,
+    category: $('#vrCat').value, tags: [], date: todayStr(), note: '语音记账',
+    groupIds: Calc.groupIdsForDate(todayStr()), isFixed: false, createdAt: Date.now(), updatedAt: Date.now()
+  });
+  $('#modalVoice').classList.remove('show');
+  toast('语音记账成功'); renderAll();
+};
+
+/* ============================================================
+ * 数据导入导出 & 备份
+ * ============================================================ */
+function downloadFile(name, content, mime) {
+  const blob = new Blob([content], { type: mime });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 200);
+}
+/* 导出 JSON 完整备份 */
+$('#btnExportJson').onclick = () => {
+  downloadFile(`${getAppName()}-备份-${todayStr()}.json`, JSON.stringify(Store.snapshot(), null, 2), 'application/json');
+  toast('JSON 备份已导出');
+};
+/* 导出 CSV（Excel 兼容 BOM） */
+$('#btnExportCsv').onclick = () => {
+  const head = '日期,类型,分类,金额,标签,备注,所属分组';
+  const rows = Store.records.map(r => [
+    r.date, r.type === 'expense' ? '支出' : '收入', r.category, r.amount.toFixed(2),
+    (r.tags || []).join(' '), (r.note || '').replace(/[,\"\n]/g, ' '),
+    r.groupIds.map(id => (Calc.getGroup(id) || { name: '已删除分组' }).name).join(' ')
+  ].join(','));
+  downloadFile(`${getAppName()}-明细-${todayStr()}.csv`, '\uFEFF' + [head, ...rows].join('\n'), 'text/csv');
+  toast('CSV 明细已导出');
+};
+/* 导入 JSON：先校验，失败不破坏原数据 */
+$('#btnImportJson').onclick = () => $('#importFile').click();
+$('#importFile').onchange = e => {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const snap = JSON.parse(reader.result);
+      Store.restoreData(snap); // 校验失败会 throw
+      renderAll(); toast('数据导入成功');
+    } catch (err) {
+      toast('导入失败：' + err.message + '（原数据未受影响）', true);
+    }
+    e.target.value = '';
+  };
+  reader.readAsText(file);
+};
+/* 备份列表与恢复 */
+$('#btnBackupList').onclick = () => {
+  const bks = Store.data.backup_snapshots;
+  $('#backupList').innerHTML = bks.length ? bks.slice().reverse().map((b, i) =>
+    `<div class="bk-item"><div class="bk-info"><b>${b.date} 快照</b><span>${b.count} 条记录 · ${new Date(b.ts).toLocaleTimeString('zh-CN')}</span></div>
+     <button class="btn-mini" data-bkrestore="${bks.length - 1 - i}">恢复</button></div>`).join('') : '<div class="empty-tip">暂无备份，每天首次打开自动生成</div>';
+  $('#backupList').querySelectorAll('[data-bkrestore]').forEach(b => b.onclick = () => {
+    const snap = bks[+b.dataset.bkrestore];
+    confirmBox('恢复备份', `将把全部数据恢复到 ${snap.date} 的快照状态，当前数据将被覆盖。确认恢复？`, () => {
+      try { Store.restoreData(snap.data); renderAll(); toast('已恢复到 ' + snap.date + ' 的备份'); $('#modalBackup').classList.remove('show'); }
+      catch (err) { toast('恢复失败: ' + err.message, true); }
+    });
+  });
+  $('#modalBackup').classList.add('show');
+};
+/* 清空所有数据（二次确认；清空后为纯净空白状态，不再重新注入示例数据） */
+$('#btnClearAll').onclick = () => confirmBox('清空所有数据', '⚠ 将删除全部记账、分组、待办、模板与设置（含示例数据），且不可恢复。清空后为空白状态。确定要清空吗？', () => {
+  Store.keys.forEach(k => localStorage.removeItem(k));
+  Store.init();
+  /* 关键：标记 seeded，防止任何时机重新注入示例数据 */
+  Store.data.system_settings.seeded = true;
+  Store.data.system_settings.defaultDim = 'month';
+  Store.data.system_settings.theme = document.documentElement.dataset.theme || 'light';
+  Store.save('system_settings');
+  switchPage('home');
+  renderAll();
+  toast('所有数据已清空');
+});
+
+/* ============================================================
+ * 设置入口 / 主题 / 统计交互 / 初始化
+ * ============================================================ */
+$('#setCategories').onclick = openCatModal;
+$('#setTemplates').onclick = openTemplateModal;
+$('#setTags').onclick = openTagModal;
+$('#setDarkMode').onchange = e => { applyTheme(e.target.checked ? 'dark' : 'light'); };
+$('#setDefaultDim').onchange = e => { Store.data.system_settings.defaultDim = e.target.value; Store.save('system_settings'); toast('默认统计维度已设置'); };
+/* 自定义记账本名称：实时写入 system_settings 并同步页头/标题/关于页 */
+$('#setAppName').value = getAppName();
+$('#setAppName').oninput = e => { Store.data.system_settings.appName = e.target.value.trim(); Store.save('system_settings'); applyAppName(); };
+
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  Store.data.system_settings.theme = theme; Store.save('system_settings');
+  $('#setDarkMode').checked = theme === 'dark';
+  $('#btnTheme').innerHTML = theme === 'dark'
+    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>'
+    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>';
+}
+$('#btnTheme').onclick = () => applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+
+/* 快速记账表单交互 */
+$$('#segMode button').forEach(b => b.onclick = () => { quick.mode = b.dataset.v; $$('#segMode button').forEach(x => x.classList.toggle('on', x === b)); });
+$$('#segType button').forEach(b => b.onclick = () => {
+  quick.type = b.dataset.v;
+  $('#segType').className = 'seg ' + (quick.type === 'expense' ? 'type-exp' : 'type-inc');
+  $$('#segType button').forEach(x => x.classList.toggle('on', x === b));
+  renderQuickForm();
+});
+$('#btnQuickSubmit').onclick = () => {
+  if (!validAmount($('#quickAmount').value)) return toast('请输入正确的金额（正数，最多两位小数）', true);
+  const date = $('#quickDate').value || todayStr();
+  const r = {
+    id: uid(), type: quick.type, mode: quick.mode,
+    amount: Math.round(Number($('#quickAmount').value) * 100) / 100,
+    category: quick.category, tags: [...quick.tags], date,
+    note: $('#quickNote').value.trim(),
+    groupIds: Calc.groupIdsForDate(date), /* 自动归属所有包含该日期的分组 */
+    isFixed: false, createdAt: Date.now(), updatedAt: Date.now()
+  };
+  Store.addRecord(r);
+  $('#quickAmount').value = ''; $('#quickNote').value = '';
+  toast(`${quick.mode === 'large' ? '大额消费' : '记账'}成功 ¥${money(r.amount)}${r.groupIds.length ? '（已归入 ' + r.groupIds.length + ' 个分组）' : ''}`);
+  renderAll();
+};
+$('#btnVoice').onclick = openVoiceModal;
+$('#btnAddTodoQuick').onclick = () => openTodoModal(null);
+$('#btnAddTodo').onclick = () => openTodoModal(null);
+$('#btnAddGroup').onclick = () => openGroupModal(null);
+$('#btnAllRecords').onclick = () => { renderRecords(); switchPage('records'); };
+$('#btnStatsAll').onclick = () => { renderRecords(); switchPage('records'); };
+$('#btnBackFromRecords').onclick = () => switchPage('home');
+$('#btnBackFromDetail').onclick = () => switchPage('groups');
+$('#btnEditGroup').onclick = () => {
+  if (gdGroupId) openGroupModal(gdGroupId);
+};
+$('#excludeLargeHome').onchange = renderHome;
+$('#excludeLargeStats').onchange = renderStats;
+
+/* Tab 导航 */
+$$('#tabbar button').forEach(b => b.onclick = () => switchPage(b.dataset.page));
+
+/* 统计维度切换 */
+$$('#dimTabs button').forEach(b => b.onclick = () => {
+  statsState.dim = b.dataset.v;
+  statsState.cursor = b.dataset.v === 'month' ? todayStr().slice(0, 7) : todayStr();
+  renderStats();
+});
+$('#statPrev').onclick = () => shiftStat(-1);
+$('#statNext').onclick = () => shiftStat(1);
+
+/* 手势左右滑动切换统计周期 */
+(function () {
+  let sx = 0, sy = 0;
+  const stats = $('#page-stats');
+  stats.addEventListener('touchstart', e => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
+  stats.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) shiftStat(dx > 0 ? -1 : 1);
+  }, { passive: true });
+})();
+
+/* 历史记录筛选 */
+['fltStart','fltEnd','fltCat','fltTag','fltMin','fltMax'].forEach(id => $('#' + id).oninput = renderRecords);
+$('#btnFltReset').onclick = () => {
+  ['fltStart','fltEnd','fltCat','fltTag','fltMin','fltMax'].forEach(id => $('#' + id).value = '');
+  $('#fltCat').selectedIndex = 0; $('#fltTag').selectedIndex = 0;
+  renderRecords();
+};
+
+/* 数据积累 30 条温和备份提示 */
+function backupHint() {
+  const st = Store.data.system_settings;
+  if (Store.records.length >= 30 && !st.hinted30) {
+    st.hinted30 = true; Store.save('system_settings');
+    setTimeout(() => toast('数据已积累 30 条，建议到「设置」导出 JSON 备份'), 1500);
+  }
+}
+
+/* ============================================================
+ * 初始化
+ * ============================================================ */
+function init() {
+  Store.init();
+  seedDemoData();        /* 首次注入示例数据（幂等） */
+  ensureFixedRecords();  /* 固定支出到期自动生成 */
+  autoBackup();          /* 每日自动备份快照 */
+  applyTheme(Store.data.system_settings.theme || 'light');
+  $('#setDefaultDim').value = Store.data.system_settings.defaultDim || 'month';
+  $('#setAppName').value = getAppName();
+  applyAppName();
+  statsState.dim = Store.data.system_settings.defaultDim || 'month';
+  $('#headerDate').textContent = new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+  $('#quickDate').value = todayStr();
+  renderAll();
+  backupHint();
+}
+/* 清空示例数据：设置页显式按钮（存在示例数据时展示） */
+$('#btnClearDemo').onclick = () => confirmBox('清空示例数据', '将删除全部预置示例内容（示例记账、待办、分组与模板），你的真实记账数据不受影响。确认清空？', clearDemoData);
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
