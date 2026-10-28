@@ -27,7 +27,7 @@ def technical_text(value, tags):
 
 def card(p, rank):
     tags = ''.join(f'<span class="tag">{esc(t)}</span>' for t in p['tags'])
-    preview = ''.join(f'<li><b>{esc(k)}</b><span>{technical_text(v, p["tags"])}</span></li>' for k, v in p['preview'])
+    preview = ''.join(f'<li><b>{esc(k)}：</b>{technical_text(v, p["tags"])}</li>' for k, v in p['preview'])
     bullets = ''.join(f'<li><b>{esc(k)}</b><p>{esc(v)}</p></li>' for k, v in p['highlights'])
     details = ''.join(f'<div class="detail-point"><h4>{esc(k)}</h4><p>{esc(v)}</p></div>' for k, v in p['details'])
     links = ''.join(f'<a class="detail-link" href="{esc(link["url"])}" target="_blank" rel="noopener noreferrer">{esc(link["label"])} ↗</a>' for link in p['links'])
@@ -44,9 +44,16 @@ def card(p, rank):
     }
     image, width, height, alt, caption = covers[p['id']]
     mobile_source = '<source media="(max-width:600px)" srcset="assets/portfolio-rag-mobile.svg">' if p['id'] == 'rag' else ''
+    backgrounds = {
+        'rag': '面试官需要在浏览作品的同时了解实现细节，因此把个人网站、公开资料和独立问答 API 连接起来，让经历可以被检索、追问和核对来源。',
+        'speech': '毕业设计以中文短语音情感分析为场景，结合声音表达与转写内容两个通道，并把模型分析接入录音、上传、可视化与历史回看流程。',
+        'boss': '围绕个人求职中重复筛选职位、操作页面和回复消息的需求开展实践。早期独立浏览器方案未能落地，最终使用本人已登录浏览器中的用户脚本连接模型与本地监控。',
+        'ledger': '从本人持续记账的实际需求出发，借助 AI 辅助开发搭建收支记录、周期预算与统计应用，再根据真实使用反馈持续迭代。',
+        'fruit': '以果蔬成熟度判断和采摘参考为应用场景，尝试连接样本整理、模型训练、图片或视频识别与语音反馈。当前按真实开发经历整理，源码尚未找回。',
+        'coze': '通过低代码平台熟悉智能体、基础工作流与知识库问答的搭建过程，作为理解 AI 应用链路的基础实践；范围为简单搭建与平台使用。',
+    }
     feature = '<span class="work-feature">重点项目</span>' if rank == 1 else ''
     return f'''<article class="work-card reveal" id="{esc(p['anchor'])}" data-project="{esc(p['id'])}">
-      <figure class="work-cover work-cover-{esc(p['id'])}"><picture>{mobile_source}<img src="assets/{image}" alt="{esc(alt)}" loading="lazy" decoding="async" width="{width}" height="{height}"></picture><figcaption>{caption}</figcaption></figure>
       <div class="work-body">
       <div class="work-kicker"><span class="work-category"><span class="project-rank">{rank:02}</span>{esc(p['category'])}</span>{feature}</div>
       <h3 class="work-title">{esc(p['title'])}</h3>
@@ -59,12 +66,13 @@ def card(p, rank):
           <summary>查看项目详情<span aria-hidden="true">↗</span></summary>
           <div class="work-detail-body">
             <p class="detail-state">{esc(p['category'])} · {esc(p['status'])}</p>
-            <p class="detail-intro">{esc(p['description'])}</p>
-            <div class="detail-section"><h3>实际实现与职责</h3><ul class="detail-highlights">{bullets}</ul></div>
-            <div class="detail-section"><h3>处理链路</h3><p class="detail-caption">以下为处理流程示意。</p><picture class="detail-flow"><source media="(max-width:600px)" srcset="assets/project-{esc(p['id'])}-mobile.svg"><img src="assets/project-{esc(p['id'])}.svg" alt="{esc(p['title'])}处理流程示意：{esc(' → '.join(p['pipeline']))}" loading="lazy" decoding="async"></picture></div>
-            <div class="detail-section"><h3>设计取舍与实践复盘</h3>{details}</div>
+            <section class="detail-section detail-overview"><h3>项目介绍</h3><p class="detail-intro">{esc(p['description'])}</p></section>
+            <section class="detail-section"><h3>设计背景与目标</h3><p>{esc(backgrounds[p['id']])}</p></section>
+            <section class="detail-section"><h3>核心功能与个人实现</h3><ul class="detail-highlights">{bullets}</ul></section>
+            <section class="detail-section"><h3>技术栈与处理链路</h3><div class="tags">{tags}</div><p class="detail-caption">以下为处理流程示意。</p><picture class="detail-flow"><source media="(max-width:600px)" srcset="assets/project-{esc(p['id'])}-mobile.svg"><img src="assets/project-{esc(p['id'])}.svg" alt="{esc(p['title'])}处理流程示意：{esc(' → '.join(p['pipeline']))}" loading="lazy" decoding="async"></picture></section>
+            <section class="detail-section"><h3>难点、设计取舍与实践复盘</h3>{details}</section>
+            <section class="detail-section"><h3>项目图片</h3><figure class="detail-media"><picture>{mobile_source}<img src="assets/{image}" alt="{esc(alt)}" loading="lazy" decoding="async" width="{width}" height="{height}"></picture><figcaption>{caption} · 用于说明项目场景与结构。</figcaption></figure></section>
             <div class="detail-section detail-boundary"><h3>当前状态与边界</h3><p>{esc(p['note'])}</p></div>
-            <div class="detail-section"><h3>完整技术栈</h3><div class="tags">{tags}</div></div>
             <div class="detail-section"><h3>源码与相关入口</h3><div class="detail-links">{links}</div></div>
           </div>
         </details>
