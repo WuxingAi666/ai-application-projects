@@ -32,13 +32,25 @@
   {
     "id": "skills",
     "file": "09-skills.txt",
-    "title": "技术能力与校园经历",
+    "title": "技术能力、实践分级与业务场景",
     "anchor": "skills"
   },
   {
     "id": "contact",
     "file": "10-contact.txt",
     "title": "求职方向与到岗安排",
+    "anchor": "contact"
+  },
+  {
+    "id": "campus",
+    "file": "14-campus.txt",
+    "title": "校园组织、文体活动与奖项",
+    "anchor": "campus"
+  },
+  {
+    "id": "site-guide",
+    "file": "15-site-guide.txt",
+    "title": "网站、简历、源码与助手使用指南",
     "anchor": "contact"
   },
   {
