@@ -1,7 +1,12 @@
+param([string]$PythonExe = '')
 $ErrorActionPreference = 'Stop'
 $taskRoot = Split-Path -Parent $PSScriptRoot
-$taskPython = Join-Path $taskRoot 'backend\.venv\Scripts\python.exe'
-if (-not (Test-Path -LiteralPath $taskPython)) { $taskPython = (Get-Command python).Source }
+$taskPython = $PythonExe
+if (-not $taskPython) {
+    $taskPython = Join-Path $taskRoot 'backend\.venv\Scripts\python.exe'
+    if (-not (Test-Path -LiteralPath $taskPython)) { $taskPython = (Get-Command python).Source }
+}
+if (-not (Test-Path -LiteralPath $taskPython)) { throw 'Python executable not found. Pass -PythonExe with an installed interpreter.' }
 if (-not (Test-Path -LiteralPath (Join-Path $taskRoot 'backend\.env'))) {
     throw 'Copy backend/.env.example to backend/.env and configure the model keys first.'
 }
@@ -22,3 +27,14 @@ if ($taskApi.HasExited -or $taskSite.HasExited) {
 }
 Write-Host "Website: http://127.0.0.1:8931  API: http://127.0.0.1:8010/docs"
 Write-Host "Stop these preview processes: Stop-Process -Id $($taskApi.Id),$($taskSite.Id)"
+$taskPreview = @{
+    started_at = (Get-Date).ToString('o')
+    website = 'http://127.0.0.1:8931/'
+    api = 'http://127.0.0.1:8010'
+    api_pid = $taskApi.Id
+    site_pid = $taskSite.Id
+    python = $taskPython
+    status = 'started-not-yet-verified'
+    published = $false
+}
+$taskPreview | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $taskRoot 'output\local-preview.json') -Encoding UTF8

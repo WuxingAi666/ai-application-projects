@@ -8,7 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 EXCLUDE = {".git", ".venv", "__pycache__", ".playwright-cli", "backups", "storage", "output", "node_modules"}
 PUBLIC_DIRS = {"frontend", "backend", "deploy", "scripts", ".github"}
-PUBLIC_DOCS = {"ARCHITECTURE.md", "DEPLOYMENT.md", "KNOWLEDGE.md", "VALIDATION.md"}
+PUBLIC_DOCS = {"ARCHITECTURE.md", "DEPLOYMENT.md", "KNOWLEDGE.md", "VALIDATION.md", "PROJECT-STATUS.md", "LOCAL-DEVELOPMENT.md"}
 SECRET = re.compile(r"sk-[A-Za-z0-9]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|https://[^/\s]+:[^/@\s]+@github\.com")
 
 
@@ -24,7 +24,7 @@ def files_under(root):
         if root == ROOT and not (
             relative.parts[0] in PUBLIC_DIRS
             or relative.parts[0] == 'docs' and path.name in PUBLIC_DOCS
-            or len(relative.parts) == 1 and path.name in {'README.md', '.gitignore'}
+            or len(relative.parts) == 1 and path.name in {'README.md', '.gitignore', '.gitattributes'}
         ):
             continue
         yield path, relative
@@ -49,8 +49,7 @@ def package(root, destination):
 
 if __name__ == "__main__":
     releases = [
-        package(ROOT, ROOT.parent / "RAG-Portfolio-Release.zip"),
-        package(ROOT / "frontend", ROOT.parent / "wx-portfolio-frontend.zip"),
+        package(ROOT, ROOT.parent / "wx-fullstack.zip"),
     ]
     (ROOT / "output").mkdir(exist_ok=True)
     (ROOT / "output" / "release-manifest.json").write_text(json.dumps(releases, indent=2), encoding="utf-8")

@@ -102,9 +102,13 @@ class BoundaryTests(unittest.TestCase):
             (data / "manifest.json").write_text(json.dumps([
                 {"id": "one", "file": "one.txt", "title": "公开资料", "anchor": "proj"}
             ]), encoding="utf-8")
-            s = settings_at(Path(root) / "storage", data_dir=data)
+            s = settings_at(Path(root) / "storage", data_dir=data, chunk_size=120, chunk_overlap=20)
             first = KnowledgeIndex(s, VectorFixture())
             first.initialize()
+            self.assertGreater(first.chunk_count, 1)
+            for key in first.store.index_to_docstore_id.values():
+                chunk = first.store.docstore.search(key)
+                self.assertIn("仵星的公开资料：公开资料", chunk.page_content)
             second = KnowledgeIndex(s, VectorFixture())
             second.initialize()
             hits = asyncio.run(second.search("检索问题"))
@@ -128,11 +132,11 @@ class BoundaryTests(unittest.TestCase):
                     time.sleep(.01)
                 self.assertEqual(client.get("/health/ready").status_code, 200)
                 cors = client.options("/api/v1/qa", headers={
-                    "Origin": "https://wuxingai666.github.io",
+                    "Origin": "https://llywjr.love",
                     "Access-Control-Request-Method": "POST",
                     "Access-Control-Request-Headers": "content-type",
                 })
-                self.assertEqual(cors.headers.get("access-control-allow-origin"), "https://wuxingai666.github.io")
+                self.assertEqual(cors.headers.get("access-control-allow-origin"), "https://llywjr.love")
                 denied = client.post("/api/v1/qa", json={"question": "hi"}, headers={"Origin": "https://evil.example"})
                 self.assertEqual(denied.status_code, 403)
                 self.assertEqual(client.post("/api/v1/qa", json={"question": "  "}).status_code, 422)

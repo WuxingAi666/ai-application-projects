@@ -1,149 +1,117 @@
-# 部署位置与操作说明
+# 全栈统一云端部署
 
-## 1. 最终访问方式
+正式入口：**https://llywjr.love/wx/**。GitHub 仅保存代码，wx-portfolio 不再启用 Pages。
+前端、后端都在同一台 Ubuntu 24.04 云服务器；前端无构建步骤，后端使用 Python 3.12。
+已有 Nginx 负责 80/443，systemd 管理仅监听 127.0.0.1:3001 的 FastAPI 单进程。
+使用远程 BGE-M3 与 DeepSeek，不需要 GPU、Docker、Redis 或 MySQL。
 
-网站继续使用 https://wuxingai666.github.io/wx-portfolio/ 。
-例如后端使用 https://assistant.你的域名 ，浏览器通过 HTTPS 调用它。
-后端域名、服务器系统、现有反向代理情况仍需你提供后才能最终落配置。
+## 文件与访问关系
 
-本方案按 Linux x86_64、Docker Engine 和 Compose v2 设计；建议至少 2GB 内存。
-默认使用远程模型，不需要 GPU。本地 BGE 需要额外依赖和更大内存。
+```text
+/opt/wx-portfolio/
+  releases/20261029-.../      每次发布的完整公开源码
+  current -> releases/...    当前运行版本
+  previous -> releases/...   上次成功版本（首次发布时没有）
+  venvs/<requirements-sha>/  按依赖指纹复用的 Python 环境
+/var/www/wx-portfolio/wx -> /opt/wx-portfolio/current/frontend
+/etc/wx-rag/backend.env     私有模型配置，root:root，600
+/var/lib/wx-rag/            wxrag 用户所有，索引和 SQLite 额度持久化
+/etc/systemd/system/wx-rag.service
+/etc/nginx/sites-available/wx-portfolio
+/etc/nginx/snippets/wx-portfolio-locations.conf
+```
 
-## 2. 云服务器上传哪些文件
+- `/wx/`：仅允许读取 frontend 静态文件，包含六个项目和完整简历。
+- `/wx/api/v1/chat/stream`：流式问答，Nginx 关闭缓冲。
+- `/wx/api/v1/qa`：普通 JSON 问答，外部客户端可测试。
+- `/wx/health/ready`：资料与索引就绪后返回 200。
+- `/wx/api/v1/admin/stats`：管理统计，仍需独立 Bearer 令牌。
+- 根路径 `/` 跳转 `/wx/`，HTTP 跳转 HTTPS。后端、源码文档、私有配置不在网站根目录。
 
-将成品包中的 backend/、deploy/、scripts/ 放在同一个父目录，例如：
+## 首次准备（已部署服务器不必重复）
 
-    /opt/wx-rag/
-      backend/
-      deploy/
-      scripts/
+保留原 Nginx default 站点、MySQL、SSH 和防火墙设置。确认域名 A 记录指向服务器；
+不要增加错误的 AAAA 记录。证书验证和公网访问要求 80/443 可达。
 
-不要上传 frontend 到 API 容器；网站继续由 GitHub Pages 提供。
-不要把 backups、旧项目或开发日志放进服务器网站目录。
+```bash
+sudo apt-get update
+sudo apt-get install -y --no-install-recommends python3-venv libgomp1 certbot unzip
+sudo useradd --system --home-dir /var/lib/wx-rag --shell /usr/sbin/nologin wxrag
+sudo install -d -m 755 /opt/wx-portfolio/releases /var/www/wx-portfolio /var/www/letsencrypt
+sudo install -d -m 750 -o wxrag -g wxrag /var/lib/wx-rag
+sudo install -d -m 700 /etc/wx-rag
+```
 
-## 3. DNS、端口与已有站点
+用户已存在时跳过 useradd。上传 wx-fullstack.zip 到服务器临时目录；解压到新的 release，
+不要把 ZIP 解压到 /var/www/html，也不要将整个仓库作为静态目录。
 
-给后端子域名添加 A 记录，指向服务器公网 IP。
-有 IPv6 AAAA 记录时也必须指向能服务此域名的正确地址，避免随机失败。
-服务器防火墙、安全组放行 80、443。
+```bash
+sudo mkdir /opt/wx-portfolio/releases/RELEASE
+sudo unzip /tmp/wx-fullstack.zip -d /opt/wx-portfolio/releases/RELEASE
+```
 
-如果服务器已有宝塔、Nginx、Caddy 或其他网站占用了 80/443，
-不要直接启动默认 Caddy 服务抢端口，使用本文最后的“复用现有反向代理”方案。
-大陆服务器绑定域名需满足服务商的备案要求；域名是否已备案需实际确认。
+复制 deploy/native/backend.env.example 到 /etc/wx-rag/backend.env，私下填写模型密钥。
+ADMIN_TOKEN、RATE_LIMIT_SALT 分别填独立的至少 32 字符随机值（如 secrets.token_urlsafe(48)）。
+文件保持 root 所有且 chmod 600。systemd 在降权启动前读取它；wxrag 无需读取原文件。
+模板使用线上同域 Origin，仅信任本机 Nginx 提供的代理头。当前云端并发上限为 2，
+其余默认额度为单 IP 每分钟 6 次、每日 60 次、全局每日 300 次，UTC 日期重置。
 
-## 4. 私有配置
+```bash
+sudo bash /opt/wx-portfolio/releases/RELEASE/scripts/deploy-native.sh /opt/wx-portfolio/releases/RELEASE
+```
 
-在服务器项目根目录：
+脚本安装按指纹隔离的依赖、运行离线边界测试、原子切换软链接、启动服务并等待就绪。
+就绪失败时尝试恢复上一版本；首次发布没有旧版本可回退。此操作不替换其他 Nginx 站点。
 
-    cp backend/.env.example backend/.env
-    cp deploy/.env.example deploy/.env
+## Nginx 与证书（首次）
 
-编辑 backend/.env：
+先备份已有同名配置；安装 native/nginx-locations.conf 到上述 snippets 路径，
+安装 native/nginx-http.conf 为 sites-available/wx-portfolio，创建 sites-enabled 软链接。
+执行 nginx -t 成功后 reload，再通过外网确认 HTTP 路径和 ACME challenge 可访问。
 
-    DEEPSEEK_API_KEY=新Chat密钥
-    EMBEDDING_API_KEY=新Embedding密钥
-    EMBEDDING_PROVIDER=siliconflow
-    EMBEDDING_API_MODEL=BAAI/bge-m3
+```bash
+sudo certbot certonly --webroot -w /var/www/letsencrypt -d llywjr.love --non-interactive --agree-tos --register-unsafely-without-email
+```
 
-编辑 deploy/.env：
+首次安装使用无邮件 ACME 账户；可自行在服务器设置续期联系邮箱。
+证书成功后，用 native/nginx-https.conf 替换该虚拟主机配置，再执行 nginx -t 和 reload。
+安装 native/renew-nginx.sh 为 /etc/letsencrypt/renewal-hooks/deploy/wx-nginx（755），
+启用 certbot.timer，执行 certbot renew --dry-run 验证自动续期链路。
+本机默认出站连接证书服务曾间歇超时，因此安装 scripts/certbot-ipv4.py 为 /usr/local/sbin/wx-certbot-ipv4（755），
+并将 native/certbot-ipv4.conf 安装到 /etc/systemd/system/certbot.service.d/ipv4.conf。daemon-reload 后，
+定时续期仅在该 Certbot 进程内使用 IPv4；不修改系统 IPv6、DNS 或防火墙。用 wx-certbot-ipv4 renew --dry-run 验证。
+自定义域名时需同时替换两个 Nginx 模板、私有配置和网站 canonical 元数据。
 
-    API_DOMAIN=assistant.你的域名
-    ACME_EMAIL=你的邮箱
-    SITE_ORIGIN=https://wuxingai666.github.io
-    PUBLIC_SITE_URL=https://wuxingai666.github.io/wx-portfolio/
+## 验收与常用操作
 
-生成内部随机管理凭据，在项目根目录执行：
+```bash
+curl -f https://llywjr.love/wx/health/ready
+curl -N https://llywjr.love/wx/api/v1/chat/stream \
+  -H 'Content-Type: application/json' \
+  -d '{"question":"介绍一下仵星的 RAG 项目","history":[]}'
+sudo systemctl status wx-rag --no-pager
+sudo journalctl -u wx-rag -n 80 --no-pager
+sudo systemctl restart wx-rag
+sudo nginx -t
+```
 
-    python3 scripts/init-secrets.py
-    chmod 600 backend/.env deploy/.env
+浏览器检查桌面和手机：助手在线、真实流式回答、追问、来源、停止重试、简历与项目详情。
+原始 IP 不进入应用日志；Nginx 使用系统默认访问日志，仅运维可读。
+关闭开发电脑后线上仍运行；systemd 和 Nginx 均设置开机启动。
 
-脚本在 backend/.env 中生成 ADMIN_TOKEN 和 RATE_LIMIT_SALT，不会显示它们。
-生产模式会检查这两项，并拒绝使用开发默认值。
-请在服务器填入替换过的模型密钥；原密钥曾在聊天中出现过。
+## 日常更新与回滚
 
-## 5. 启动后端与 HTTPS
+**仍在本地调整、验收，成品确认后再发布**。无需反复推送看效果。
+本地依次执行两个内容同步脚本及 check-local.py，再运行 package.py 生成最新统一包。
+上传新包并解压到全新 release，执行 deploy-native.sh。
+知识或模型参数变化时启动自动重建索引；纯样式更新复用原索引，不重复向量调用。
+不要覆盖、删除 /var/lib/wx-rag 或私有 env；它们不随代码发布变化。
 
-在 deploy 目录执行：
+手动回滚：核对 previous 指向的版本，原子更新 current 为该路径并 restart wx-rag。
+也可对旧 release 再执行 deploy-native.sh，自动执行测试与就绪检查。
+若 Nginx 配置也变更，恢复相应配置备份，先 nginx -t 再 reload。
+保留至少两个可用 release 与对应 venv；空间不足时先核对 current/previous，再清理未使用版本。
+备份私有 env、公开知识源与持久化目录，备份不进 GitHub、不放网站。
 
-    docker compose --env-file .env config --quiet
-    docker compose --env-file .env up -d --build
-    docker compose ps
-    docker compose logs --tail 100 api
-
-首次启动会读取公开资料并调用 Embedding API 建库。
-API 主进程先启动，/health/ready 在索引就绪后才返回 200。
-Caddy 自动申请证书，DNS 和端口必须先准备正确。
-
-    curl -f https://assistant.你的域名/health/ready
-
-返回 status=ready 后再接前端。生产环境默认关闭 /docs。
-不要将 API 容器的 8000 端口额外发布到公网。
-容器信任代理头的前提是只有受控的 Caddy 能访问其端口；不要绕过这个网络边界。
-
-## 6. 发布网站前端
-
-修改 frontend/js/assistant-config.js：
-
-    apiBase: "https://assistant.你的域名"
-
-地址使用 HTTPS、不带 /api 后缀；组件会自动拼接接口路径。
-GitHub Pages 的 HTTPS 页面不能正常调用普通公网 HTTP 后端。
-
-将 frontend/ 里的 index.html、css、js、assets、.nojekyll 等放到现有
-wx-portfolio 仓库根目录。保留原仓库 .git，不要用成品目录覆盖仓库本身。
-先在 Git 分支检查修改，再提交并推送到现有发布分支。
-
-backend、deploy、.env、备份和运行数据都不能放进 GitHub Pages 根目录。
-CORS 来源为 https://wuxingai666.github.io，不包含 /wx-portfolio/ 路径。
-同一 GitHub Pages 域名下其他页面共享此 Origin，所以 CORS 不能做页面级鉴权。
-
-## 7. 用外网验收
-
-- 打开网站、点开助手，状态显示在线。
-- 提问“他的 RAG 项目是怎么实现的”，出现流式答案和可展开来源。
-- 接着问“为什么这样做”，应延续同一项目。
-- 问未记录的具体工作承诺或私人信息，不能编造。
-- 两个不同浏览器的对话互不串话。
-- 停止生成、新对话、手机全屏、来源跳转正常。
-- 停止或重启后端时，个人网站本身仍可浏览并能查看简历。
-- 关掉你的个人电脑，外网仍可问答。
-
-## 8. 更新知识、备份与回滚
-
-修改 backend/data/public/ 中的 TXT 和 manifest.json；
-同步网站介绍，避免出现两套事实。
-
-    docker compose --env-file .env up -d --build api
-
-新容器启动时计算指纹，知识或模型配置变化会生成新索引。
-服务运行中不自动读取你 Windows 电脑上的文件。线上知识必须上传并重新部署。
-不开放网页上传和公开重建接口，避免访客改写本人资料。
-
-备份知识源文件、私有环境变量、rag-storage 数据卷。
-不要使用 docker compose down -v，否则会删除持久化额度与索引。
-回滚时恢复上一份代码与知识文件再重建镜像；旧索引以指纹保存，可重新加载。
-
-查看日志：
-
-    docker compose logs --tail 100 api
-
-查看管理统计：
-
-    curl -H "Authorization: Bearer 你的ADMIN_TOKEN" https://assistant.你的域名/api/v1/admin/stats
-
-只在自己的终端中操作，ADMIN_TOKEN 不写进浏览器、不分享给访客。
-数据保存近 30 天，仅包含匿名化 IP 哈希、请求 ID、时间、状态和生成 Token 计数。
-Token 计数不是账单，未覆盖改写调用和部分失败请求；实际费用以提供商账单为准。
-
-## 9. 复用现有反向代理
-
-有现有 Nginx/宝塔时，在 deploy 目录使用：
-
-    docker compose --env-file .env -f compose.existing-proxy.yaml up -d --build
-
-此方案只把 API 发布在服务器回环地址 127.0.0.1:8010，
-由现有 HTTPS 站点代理。Nginx location 示例见 nginx-location.conf。
-证书与域名由现有面板或代理维护，不再运行 Caddy。
-
-首次发布仍需要在真实服务器验证 Docker 构建、证书和跨域；本地 Windows
-没有 Docker，因此交付验收不声称已完成 Linux 容器运行验证。
+deploy 下原有 Compose/Caddy 文件仅保留为可选的独立 API 示例，
+**当前服务器使用 deploy/native，不启动 Compose/Caddy**，避免抢占现有端口。

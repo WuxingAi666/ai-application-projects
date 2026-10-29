@@ -1,88 +1,75 @@
-# 仵星的作品集 RAG 问答助手 · 交付版
+# 仵星的作品集网站 × RAG 问答助手
 
-个人网站与「仵星的RAG问答助手」组成完整全栈作品，配套独立的 LangChain + FAISS + FastAPI 后端。
-悬浮入口名为「问问仵星的RAG问答助手」，通过提示语引导访客了解项目、实习与技术方案。
-网站保留蓝色风格，内容围绕业务分析、编码实现、全栈集成与沟通交付组织；助手使用墨绿与暖白配色。
-桌面默认 400×600 小窗，支持标题栏拖动、八向尺寸调整、放大还原、最小化与对话保留，手机全屏。
-默认使用硅基流动 BGE-M3 语义向量与 DeepSeek Chat。网站继续托管在 GitHub Pages，
-后端部署在你自己的云服务器。公网发布需要补上后端域名和服务器配置。
+完整全栈项目：原生 HTML/CSS/JavaScript 作品集与独立 LangChain + FAISS + FastAPI 服务。
+正式入口：**https://llywjr.love/wx/**。GitHub 仅保存完整源码，本网站不再使用 GitHub Pages。
 
-## 交付内容
+网站保留六个项目、实习经历、业务交付闭环、技能和完整可打印简历。
+「问问仵星的RAG问答助手」采用独立森林绿风格与嫩芽笑脸头像，桌面默认 400×560，
+支持拖动缩放和放大还原，手机适配全屏和软键盘。流式回答默认保留开头供阅读，
+提供主动跟随、来源、停止重试、连续追问、复制、导出、草稿和提问灵感。
 
-| 目录 | 用途 | 部署位置 |
+## 代码结构
+
+| 目录 | 内容 | 运行位置 |
 | --- | --- | --- |
-| frontend/ | 网站完整源码、原图片、新聊天组件、RAG 展示卡片 | GitHub Pages 仓库根目录 |
-| backend/ | Python API、公开知识 TXT、检索和生成、额度记录 | 云服务器，Docker 容器 |
-| deploy/ | Docker Compose、Caddy 自动 HTTPS、现有反向代理方案 | 同一台云服务器 |
-| scripts/ | 本地启动、内部密钥初始化、检查与打包 | 开发电脑或服务器 |
-| docs/ | 部署、架构、知识维护和验收说明 | 自己查阅，不放进网站根目录 |
-| backups/ | 原网站完整备份、旧 RAG 源码备份 | 只在本机保留，不公开上传 |
-| output/ | 本地截图、评估结果、校验报告 | 本地验收记录 |
+| frontend/ | 完整网站、静态图片、聊天组件、项目内容 | 云服务器 Nginx 静态目录 |
+| backend/ | FastAPI、RAG 链路、15 份公开 TXT、离线测试 | 云服务器 Python 3.12 + systemd |
+| deploy/native/ | systemd、Nginx、生产配置模板、续期钩子 | 同一云服务器 |
+| scripts/ | 本地运行、内容同步、检查、打包、版本激活 | 开发电脑 / 云服务器 |
+| docs/ | 架构、部署、知识维护和进度 | 开发与运维查阅 |
+| deploy/ci/ | 可选 GitHub Actions 检查模板，默认不启用 | GitHub 配置参考 |
 
-**模型密钥只存在 backend/.env。交付压缩包不包含任何真实密钥。**
-开发目录已复用你原来的模型配置供本地验收；上传服务器时请通过私有方式配置。
+公开 ZIP 与仓库不包含真实密钥、运行存储、日志、原始备份或客户文档。
+开发配置在本地 backend/.env；生产配置在 /etc/wx-rag/backend.env，通过私有方式维护。
 
-## 本地运行
+## RAG 实现
 
-推荐 Windows Python 3.13，当前交付使用 Python 3.13.5 实际运行。
-在 backend 目录创建独立环境并安装：
+TextLoader 加载公开 TXT → RecursiveCharacterTextSplitter（420/80）→
+BGE-M3 Embedding → FAISS 归一化向量召回 → Prompt → DeepSeek 流式生成 → SSE 与来源展示。
+支持最近对话指代改写；无资料时提示不足，不以手写关键词打分替代向量检索。
+默认用硅基流动 BGE-M3 与 DeepSeek Chat API；可切换本地 BGE，需要另装相应依赖。
+这是自有服务器托管应用和知识库，**不是全离线推理**。
 
-    python -m venv .venv
-    .\.venv\Scripts\python -m pip install -r requirements.txt
+FAISS 二进制 + JSON 安全持久化，无 pickle；内容指纹支持索引复用与更新。
+SQLite 原子预约控制单 IP / 全局请求额度和并发，管理统计独立鉴权。
+后端错误不暴露密钥和上游正文，浏览器以安全 DOM 显示模型文本。
 
-首次解压的人需要复制 backend/.env.example 为 backend/.env，填写两枚模型密钥。
-开发工作目录已经有配置时不要覆盖。
+## 本地开发
 
-在成品根目录执行：
+使用 Python 3.12/3.13，安装 backend/requirements.txt。
+首次复制 backend/.env.example 为 backend/.env 并私下填模型密钥；已有配置不要覆盖。
 
-    powershell -ExecutionPolicy Bypass -File scripts/start-local.ps1
+```powershell
+python -m venv backend/.venv
+backend/.venv/Scripts/python -m pip install -r backend/requirements.txt
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-local.ps1
+```
 
-网站 http://127.0.0.1:8931/ ，API 文档 http://127.0.0.1:8010/docs 。
-脚本会输出两个进程 PID 和停止命令；日志写在 output/。
-也可以分别开两个终端执行：
+当前开发电脑可显式加 `-PythonExe D:/jiqixuexi/python.exe`。
+网站 http://127.0.0.1:8931/，API http://127.0.0.1:8010/；仅本地开发模式开放 /docs。
+修改界面仍在本地查看，成品确认后再发布。
 
-    cd backend
-    python main.py
+```powershell
+python scripts/sync-project-content.py
+python scripts/sync-knowledge.py
+python scripts/check-local.py
+python scripts/package.py
+```
 
-    cd frontend
-    python -m http.server 8931 --bind 127.0.0.1
+最后一步在工程旁生成统一成品包 **wx-fullstack.zip**。包含全部前后端公开代码与部署说明。
+check-local.py 检查 JS/Python 语法、内容同步、JSON 及 API/索引/配额边界，不调用模型。
+知识变化后启动或重启 API 自动重建索引；仅改样式不重建。
 
-## 主要能力
+## 云端部署
 
-- 独立模块面板与单列项目卡片：每项只保留一层外框，标题、核心简介和黑色粗体技术词直接排版，保留技术标签及操作按钮。图片、背景、实现和复盘集中到详情弹窗；支持轻透视淡入、分享链接、键盘操作、浏览器历史与无 JavaScript 回退。
-- 原生、无 CDN 依赖的聊天组件；流式回答、停止、重试、新对话、来源展开、手机全屏。
-- TextLoader 按清单加载公开 TXT，RecursiveCharacterTextSplitter 重叠分块。
-- 远程 BGE-M3，或可选本地 BGE；FAISS 归一化向量语义召回。
-- 最近对话补全检索问题，避免“这个项目”丢失主题。
-- 资料不足时说明，提示词约束真实事实，回答附公开资料标记。
-- 无 pickle 的索引持久化、内容指纹、文件完整性校验。
-- SQLite 持久化单 IP / 全局请求额度、并发预约、UTC 日期重置。
-- 无公开索引写接口；管理统计单独鉴权；错误输出去内部信息。
-- Docker 非 root、API 不直接暴露公网、Caddy HTTPS、SSE 不缓冲。
+完整步骤见 [DEPLOYMENT.md](docs/DEPLOYMENT.md)。
+Nginx 在 `/wx/` 提供前端，将 `/wx/api/` 和 `/wx/health/` 反向代理到回环端口 3001。
+systemd 以专用 wxrag 用户运行后端，自动重启、开机启动。
+证书自动续期；私有配置、FAISS 索引和 SQLite 与版本目录分离，支持版本回滚。
+现有 MySQL、SSH 和其他站点不参与本项目，不改其配置。
+旧 Docker/Caddy 文件保留为可选 API 示例，当前服务器不使用。
 
-## 验证
+进度与实际验收见 [PROJECT-STATUS.md](docs/PROJECT-STATUS.md)，架构见
+[ARCHITECTURE.md](docs/ARCHITECTURE.md)，知识维护见 [KNOWLEDGE.md](docs/KNOWLEDGE.md)。
 
-离线边界测试，不消耗模型 API：
-
-    cd backend
-    python -m unittest discover -s tests -v
-
-真实召回及生成样例评估，会消耗模型 API：
-
-    python evaluate.py
-
-结果写到 output/evaluation.json。小样本结果不能当成泛化准确率。
-阅读 docs/VALIDATION.md 查看本次实际验证的范围。项目文案统一维护在 frontend/content/projects.json，通过 scripts/sync-project-content.py 同步网站、简历与项目知识库。
-
-## 公网部署
-
-请按 docs/DEPLOYMENT.md 操作。关键步骤：
-
-1. 后端子域名解析到云服务器，准备 80/443 端口或复用现有代理。
-2. 在服务器配置 backend/.env 与 deploy/.env，生成内部管理密钥。
-3. 在 deploy 目录运行 Docker Compose，确认 HTTPS 健康检查。
-4. 把 frontend/js/assistant-config.js 的 apiBase 改成真实后端 HTTPS 地址。
-5. 仅将 frontend/ 的内容发布到 GitHub Pages，不上传整个成品目录。
-6. 从外部网络进行浏览器验收，再发送链接给面试官。
-
-GitHub Pages 负责发布静态网站，后端需另行部署到云服务器。当前公网问答后端尚未接入，静态网站可独立浏览项目与简历。
+CI 模板保存在 deploy/ci/checks.yml。当前 GitHub 凭据只有 repo 权限，无法创建 Actions 工作流；因此保留完整检查代码为模板，未启用自动工作流，也不部署 Pages。获得 workflow 权限后可复制到 .github/workflows/ 启用；本地和服务器的检查不依赖 Actions。

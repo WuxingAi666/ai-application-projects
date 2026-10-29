@@ -35,7 +35,8 @@ class KnowledgeIndex:
         manifest = json.loads((self.settings.data_dir / "manifest.json").read_text(encoding="utf-8"))
         digest = hashlib.sha256()
         digest.update(json.dumps({
-            "schema": 2,
+            "schema": 3,
+            "chunk_context": "person_and_document_title_v1",
             "embedding": embedding_identity(self.settings),
             "chunk_size": self.settings.chunk_size,
             "chunk_overlap": self.settings.chunk_overlap,
@@ -69,7 +70,13 @@ class KnowledgeIndex:
             # Never propagate local filesystem paths through the public API.
             for doc in loaded:
                 doc.metadata = {"title": item["title"], "anchor": item["anchor"], "document_id": item["id"]}
-            docs.extend(splitter.split_documents(loaded))
+            chunks = splitter.split_documents(loaded)
+            # Each chunk must retain whose project it belongs to. Otherwise a
+            # technical paragraph separated from its heading loses that context
+            # in its embedding, and generic profile summaries can outrank it.
+            for chunk in chunks:
+                chunk.page_content = "【仵星的公开资料：" + item["title"] + "】\n" + chunk.page_content
+            docs.extend(chunks)
         if not docs:
             raise ValueError("Public knowledge is empty")
         store = FAISS.from_documents(

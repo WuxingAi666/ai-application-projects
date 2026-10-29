@@ -26,9 +26,9 @@ class Settings(BaseSettings):
     hf_endpoint: str = "https://hf-mirror.com"
     data_dir: Path = BASE_DIR / "data" / "public"
     storage_dir: Path = BASE_DIR / "storage"
-    public_site_url: str = "https://wuxingai666.github.io/wx-portfolio/"
+    public_site_url: str = "https://llywjr.love/wx/"
     allowed_origins: list[str] = [
-        "https://wuxingai666.github.io",
+        "https://llywjr.love",
         "http://127.0.0.1:8931",
         "http://localhost:8931",
     ]
