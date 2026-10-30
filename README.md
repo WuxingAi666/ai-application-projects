@@ -1,6 +1,6 @@
 # 仵星 · AI 应用与全栈实践
 
-[个人作品集](http://cloud.8-152-192-126.sslip.io/wx/) · [记账本在线体验](https://wuxingai666.github.io/xiaozhangben/)
+[个人作品集](http://8.152.192.126/wx/) · [记账本在线体验](https://wuxingai666.github.io/xiaozhangben/)
 
 围绕业务需求、模型/API 集成、前后端交互和迭代交付整理六个个人项目。保留真实实现和研发状态，不以未经验证的数字替代效果证据。开发过程中使用 AI 辅助编码、调试与文档整理。
 
